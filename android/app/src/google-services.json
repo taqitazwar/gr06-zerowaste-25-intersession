@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1031956156307",
+    "project_id": "gr06-zerowaste-25-intersession",
+    "storage_bucket": "gr06-zerowaste-25-intersession.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1031956156307:android:c00afd4bc519dba5a3a266",
+        "android_client_info": {
+          "package_name": "com.example.zerowaste_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDCflJVbCnPiNs1_KhJrRRfWXIpOuahelU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
