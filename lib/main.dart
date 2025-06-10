@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -13,7 +14,6 @@ void main() async {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -26,10 +26,8 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// Decides if the user is logged in or not.
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
-
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
@@ -39,10 +37,8 @@ class AuthGate extends StatelessWidget {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
         if (snapshot.hasData) {
-          // User is logged in
           return const HomePage();
         }
-        // Not logged in
         return const AuthScreen();
       },
     );
@@ -51,7 +47,6 @@ class AuthGate extends StatelessWidget {
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
-
   @override
   State<AuthScreen> createState() => _AuthScreenState();
 }
@@ -78,6 +73,25 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
     super.dispose();
   }
 
+  Future<void> signInWithGoogle() async {
+    setState(() => error = '');
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        // User aborted sign-in
+        return;
+      }
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      await FirebaseAuth.instance.signInWithCredential(credential);
+    } catch (e) {
+      setState(() => error = 'Google sign-in failed: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -90,7 +104,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(18),
-              boxShadow: [
+              boxShadow: const [
                 BoxShadow(
                   color: Colors.black12,
                   blurRadius: 16,
@@ -125,14 +139,14 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
                   ),
                   child: TabBar(
                     controller: _tabController,
-                    tabs: [
+                    tabs: const [
                       Tab(child: Text('Log In', style: TextStyle(color: Colors.black))),
                       Tab(child: Text('Sign Up', style: TextStyle(color: Colors.black))),
                     ],
                     indicator: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
+                      boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
                     ),
                     indicatorSize: TabBarIndicatorSize.tab,
                   ),
@@ -161,14 +175,14 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
       children: [
         Align(
           alignment: Alignment.centerLeft,
-          child: Text("Email", style: TextStyle(fontWeight: FontWeight.bold)),
+          child: const Text("Email", style: TextStyle(fontWeight: FontWeight.bold)),
         ),
         const SizedBox(height: 4),
         TextField(
           controller: _emailController,
           decoration: InputDecoration(
             hintText: "Enter your email",
-            prefixIcon: Icon(Icons.email_outlined),
+            prefixIcon: const Icon(Icons.email_outlined),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             fillColor: Colors.grey[50],
             filled: true,
@@ -177,7 +191,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
         const SizedBox(height: 16),
         Align(
           alignment: Alignment.centerLeft,
-          child: Text("Password", style: TextStyle(fontWeight: FontWeight.bold)),
+          child: const Text("Password", style: TextStyle(fontWeight: FontWeight.bold)),
         ),
         const SizedBox(height: 4),
         TextField(
@@ -185,7 +199,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
           obscureText: true,
           decoration: InputDecoration(
             hintText: "Enter your password",
-            prefixIcon: Icon(Icons.lock_outline),
+            prefixIcon: const Icon(Icons.lock_outline),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             fillColor: Colors.grey[50],
             filled: true,
@@ -230,10 +244,10 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
         ),
         const SizedBox(height: 18),
         Row(
-          children: [
+          children: const [
             Expanded(child: Divider()),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10.0),
+              padding: EdgeInsets.symmetric(horizontal: 10.0),
               child: Text("or"),
             ),
             Expanded(child: Divider()),
@@ -244,18 +258,16 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
           width: double.infinity,
           height: 44,
           child: OutlinedButton.icon(
-            icon: Icon(Icons.g_mobiledata, size: 26),
+            icon: const Icon(Icons.g_mobiledata, size: 26),
             label: const Text("Continue with Google"),
-            onPressed: () {
-              // TODO: implement Google sign-in
-            },
+            onPressed: signInWithGoogle,
             style: OutlinedButton.styleFrom(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
           ),
         ),
         const SizedBox(height: 10),
-        Text(
+        const Text(
           "By continuing, you agree to our Terms of Service and Privacy Policy",
           style: TextStyle(fontSize: 11, color: Colors.black54),
           textAlign: TextAlign.center,
@@ -269,14 +281,14 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
       children: [
         Align(
           alignment: Alignment.centerLeft,
-          child: Text("Email", style: TextStyle(fontWeight: FontWeight.bold)),
+          child: const Text("Email", style: TextStyle(fontWeight: FontWeight.bold)),
         ),
         const SizedBox(height: 4),
         TextField(
           controller: _emailController,
           decoration: InputDecoration(
             hintText: "Enter your email",
-            prefixIcon: Icon(Icons.email_outlined),
+            prefixIcon: const Icon(Icons.email_outlined),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             fillColor: Colors.grey[50],
             filled: true,
@@ -285,7 +297,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
         const SizedBox(height: 16),
         Align(
           alignment: Alignment.centerLeft,
-          child: Text("Password", style: TextStyle(fontWeight: FontWeight.bold)),
+          child: const Text("Password", style: TextStyle(fontWeight: FontWeight.bold)),
         ),
         const SizedBox(height: 4),
         TextField(
@@ -293,7 +305,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
           obscureText: true,
           decoration: InputDecoration(
             hintText: "Enter your password",
-            prefixIcon: Icon(Icons.lock_outline),
+            prefixIcon: const Icon(Icons.lock_outline),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             fillColor: Colors.grey[50],
             filled: true,
@@ -324,10 +336,10 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
         ),
         const SizedBox(height: 18),
         Row(
-          children: [
+          children: const [
             Expanded(child: Divider()),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10.0),
+              padding: EdgeInsets.symmetric(horizontal: 10.0),
               child: Text("or"),
             ),
             Expanded(child: Divider()),
@@ -338,18 +350,16 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
           width: double.infinity,
           height: 44,
           child: OutlinedButton.icon(
-            icon: Icon(Icons.g_mobiledata, size: 26),
+            icon: const Icon(Icons.g_mobiledata, size: 26),
             label: const Text("Continue with Google"),
-            onPressed: () {
-              // TODO: implement Google sign-up
-            },
+            onPressed: signInWithGoogle,
             style: OutlinedButton.styleFrom(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
           ),
         ),
         const SizedBox(height: 10),
-        Text(
+        const Text(
           "By continuing, you agree to our Terms of Service and Privacy Policy",
           style: TextStyle(fontSize: 11, color: Colors.black54),
           textAlign: TextAlign.center,
@@ -359,10 +369,8 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
   }
 }
 
-// Placeholder HomePage after login/signup
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
