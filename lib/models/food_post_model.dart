@@ -19,7 +19,32 @@ enum DietaryTag {
   nutFree,
   organic,
   lowSodium,
-  sugarFree,
+  sugarFree;
+
+  String get displayName {
+    switch (this) {
+      case DietaryTag.vegetarian:
+        return 'Vegetarian';
+      case DietaryTag.vegan:
+        return 'Vegan';
+      case DietaryTag.glutenFree:
+        return 'Gluten-Free';
+      case DietaryTag.halal:
+        return 'Halal';
+      case DietaryTag.kosher:
+        return 'Kosher';
+      case DietaryTag.dairyFree:
+        return 'Dairy-Free';
+      case DietaryTag.nutFree:
+        return 'Nut-Free';
+      case DietaryTag.organic:
+        return 'Organic';
+      case DietaryTag.lowSodium:
+        return 'Low Sodium';
+      case DietaryTag.sugarFree:
+        return 'Sugar-Free';
+    }
+  }
 }
 
 class FoodPostModel {
@@ -32,6 +57,7 @@ class FoodPostModel {
   final List<DietaryTag> dietaryTags;
   final DateTime expiryTime;
   final DateTime createdAt;
+  final DateTime updatedAt;
   final FoodPostStatus status;
   final String? claimedBy; // User ID who claimed the food
   final DateTime? claimedAt;
@@ -47,6 +73,7 @@ class FoodPostModel {
     required this.dietaryTags,
     required this.expiryTime,
     required this.createdAt,
+    required this.updatedAt,
     this.status = FoodPostStatus.available,
     this.claimedBy,
     this.claimedAt,
@@ -72,6 +99,7 @@ class FoodPostModel {
           .toList(),
       expiryTime: (data['expiryTime'] as Timestamp).toDate(),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
+      updatedAt: (data['updatedAt'] as Timestamp).toDate(),
       status: FoodPostStatus.values.firstWhere(
         (e) => e.toString().split('.').last == data['status'],
         orElse: () => FoodPostStatus.available,
@@ -95,6 +123,7 @@ class FoodPostModel {
       'dietaryTags': dietaryTags.map((tag) => tag.toString().split('.').last).toList(),
       'expiryTime': Timestamp.fromDate(expiryTime),
       'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
       'status': status.toString().split('.').last,
       'claimedBy': claimedBy,
       'claimedAt': claimedAt != null ? Timestamp.fromDate(claimedAt!) : null,
@@ -104,31 +133,36 @@ class FoodPostModel {
 
   // Copy with new values
   FoodPostModel copyWith({
+    String? id,
+    String? donorId,
     String? title,
     String? description,
     List<String>? imageUrls,
     LocationData? pickupLocation,
-    List<DietaryTag>? dietaryTags,
+    Set<DietaryTag>? dietaryTags,
     DateTime? expiryTime,
     FoodPostStatus? status,
     String? claimedBy,
     DateTime? claimedAt,
     String? pickupInstructions,
+    DateTime? createdAt,
+    DateTime? updatedAt,
   }) {
     return FoodPostModel(
-      id: id,
-      donorId: donorId,
+      id: id ?? this.id,
+      donorId: donorId ?? this.donorId,
       title: title ?? this.title,
       description: description ?? this.description,
       imageUrls: imageUrls ?? this.imageUrls,
       pickupLocation: pickupLocation ?? this.pickupLocation,
-      dietaryTags: dietaryTags ?? this.dietaryTags,
+      dietaryTags: dietaryTags?.toList() ?? this.dietaryTags,
       expiryTime: expiryTime ?? this.expiryTime,
-      createdAt: createdAt,
       status: status ?? this.status,
       claimedBy: claimedBy ?? this.claimedBy,
       claimedAt: claimedAt ?? this.claimedAt,
       pickupInstructions: pickupInstructions ?? this.pickupInstructions,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
@@ -139,31 +173,6 @@ class FoodPostModel {
   
   // Get dietary tags as readable strings
   List<String> get dietaryTagsAsStrings {
-    return dietaryTags.map((tag) => _getDietaryTagDisplayName(tag)).toList();
-  }
-
-  String _getDietaryTagDisplayName(DietaryTag tag) {
-    switch (tag) {
-      case DietaryTag.vegetarian:
-        return 'Vegetarian';
-      case DietaryTag.vegan:
-        return 'Vegan';
-      case DietaryTag.glutenFree:
-        return 'Gluten-Free';
-      case DietaryTag.halal:
-        return 'Halal';
-      case DietaryTag.kosher:
-        return 'Kosher';
-      case DietaryTag.dairyFree:
-        return 'Dairy-Free';
-      case DietaryTag.nutFree:
-        return 'Nut-Free';
-      case DietaryTag.organic:
-        return 'Organic';
-      case DietaryTag.lowSodium:
-        return 'Low Sodium';
-      case DietaryTag.sugarFree:
-        return 'Sugar-Free';
-    }
+    return dietaryTags.map((tag) => tag.displayName).toList();
   }
 } 
