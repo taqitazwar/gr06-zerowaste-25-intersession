@@ -37,7 +37,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -199,15 +199,19 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+    
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
             colors: [
               Colors.green[400]!,
               Colors.green[600]!,
+              Colors.green[700]!,
             ],
           ),
         ),
@@ -216,17 +220,24 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
             opacity: _fadeAnimation,
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: keyboardVisible ? 20 : 40,
+                ),
                 child: Container(
-                  constraints: const BoxConstraints(maxWidth: 400),
+                  constraints: const BoxConstraints(
+                    maxWidth: 420,
+                    minHeight: 500,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 30,
+                        offset: const Offset(0, 15),
+                        spreadRadius: 0,
                       ),
                     ],
                   ),
@@ -237,7 +248,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                       _buildTabBar(),
                       _buildTabContent(),
                       if (_errorMessage != null) _buildErrorMessage(),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
@@ -251,28 +262,44 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.fromLTRB(24, 32, 24, 20),
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            width: 80,
+            height: 80,
             decoration: BoxDecoration(
-              color: Colors.green[50],
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.green[400]!,
+                  Colors.green[600]!,
+                ],
+              ),
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.green.withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
-            child: Icon(
+            child: const Icon(
               Icons.recycling,
-              size: 48,
-              color: Colors.green[600],
+              size: 40,
+              color: Colors.white,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Text(
             'ZeroWaste',
             style: TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.bold,
               color: Colors.green[700],
+              letterSpacing: -0.5,
             ),
           ),
           const SizedBox(height: 8),
@@ -281,6 +308,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
             style: TextStyle(
               fontSize: 16,
               color: Colors.grey[600],
+              height: 1.4,
             ),
             textAlign: TextAlign.center,
           ),
@@ -291,32 +319,52 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
   Widget _buildTabBar() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 32),
+      margin: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: TabBar(
         controller: _tabController,
         tabs: const [
-          Tab(text: 'Sign In'),
-          Tab(text: 'Sign Up'),
+          Tab(
+            height: 50,
+            child: Text('Sign In', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+          Tab(
+            height: 50,
+            child: Text('Sign Up', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
         ],
         labelColor: Colors.white,
         unselectedLabelColor: Colors.grey[600],
         indicator: BoxDecoration(
-          color: Colors.green[600],
+          gradient: LinearGradient(
+            colors: [Colors.green[500]!, Colors.green[600]!],
+          ),
           borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.green.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
+        indicatorSize: TabBarIndicatorSize.tab,
         dividerColor: Colors.transparent,
+        splashFactory: NoSplash.splashFactory,
+        overlayColor: MaterialStateProperty.all(Colors.transparent),
       ),
     );
   }
 
   Widget _buildTabContent() {
-    return Container(
-      height: _tabController.index == 0 ? 280 : 400,
-      padding: const EdgeInsets.all(32),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      height: _tabController.index == 0 ? 320 : 450,
+      padding: const EdgeInsets.all(24),
       child: TabBarView(
         controller: _tabController,
         children: [
@@ -332,66 +380,46 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       key: _signInFormKey,
       child: Column(
         children: [
-          TextFormField(
+          const SizedBox(height: 8),
+          _buildTextField(
             controller: _signInEmailController,
             validator: _validateEmail,
             keyboardType: TextInputType.emailAddress,
-            decoration: InputDecoration(
-              labelText: 'Email',
-              prefixIcon: const Icon(Icons.email_outlined),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              filled: true,
-              fillColor: Colors.grey[50],
-            ),
+            labelText: 'Email Address',
+            prefixIcon: Icons.email_outlined,
           ),
           const SizedBox(height: 20),
-          TextFormField(
+          _buildTextField(
             controller: _signInPasswordController,
             validator: _validatePassword,
             obscureText: _obscurePassword,
-            decoration: InputDecoration(
-              labelText: 'Password',
-              prefixIcon: const Icon(Icons.lock_outline),
-              suffixIcon: IconButton(
-                icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
-                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+            labelText: 'Password',
+            prefixIcon: Icons.lock_outline,
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                color: Colors.grey[600],
               ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              filled: true,
-              fillColor: Colors.grey[50],
+              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
             ),
           ),
           const SizedBox(height: 32),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _signIn,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green[600],
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
+          _buildActionButton(
+            text: 'Sign In',
+            onPressed: _isLoading ? null : _signIn,
+            isLoading: _isLoading,
+          ),
+          const SizedBox(height: 16),
+          TextButton(
+            onPressed: () {
+              // Add forgot password functionality later
+            },
+            child: Text(
+              'Forgot Password?',
+              style: TextStyle(
+                color: Colors.green[600],
+                fontWeight: FontWeight.w500,
               ),
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : const Text(
-                      'Sign In',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
             ),
           ),
         ],
@@ -404,109 +432,173 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       key: _signUpFormKey,
       child: Column(
         children: [
-          TextFormField(
+          const SizedBox(height: 8),
+          _buildTextField(
             controller: _signUpNameController,
             validator: _validateName,
-            decoration: InputDecoration(
-              labelText: 'Full Name',
-              prefixIcon: const Icon(Icons.person_outline),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              filled: true,
-              fillColor: Colors.grey[50],
-            ),
+            labelText: 'Full Name',
+            prefixIcon: Icons.person_outline,
           ),
-          const SizedBox(height: 16),
-          TextFormField(
+          const SizedBox(height: 18),
+          _buildTextField(
             controller: _signUpEmailController,
             validator: _validateEmail,
             keyboardType: TextInputType.emailAddress,
-            decoration: InputDecoration(
-              labelText: 'Email',
-              prefixIcon: const Icon(Icons.email_outlined),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              filled: true,
-              fillColor: Colors.grey[50],
-            ),
+            labelText: 'Email Address',
+            prefixIcon: Icons.email_outlined,
           ),
-          const SizedBox(height: 16),
-          TextFormField(
+          const SizedBox(height: 18),
+          _buildTextField(
             controller: _signUpPasswordController,
             validator: _validatePassword,
             obscureText: _obscurePassword,
-            decoration: InputDecoration(
-              labelText: 'Password',
-              prefixIcon: const Icon(Icons.lock_outline),
-              suffixIcon: IconButton(
-                icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
-                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+            labelText: 'Password',
+            prefixIcon: Icons.lock_outline,
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                color: Colors.grey[600],
               ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              filled: true,
-              fillColor: Colors.grey[50],
+              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
             ),
           ),
-          const SizedBox(height: 16),
-          TextFormField(
+          const SizedBox(height: 18),
+          _buildTextField(
             controller: _confirmPasswordController,
             validator: _validateConfirmPassword,
             obscureText: _obscureConfirmPassword,
-            decoration: InputDecoration(
-              labelText: 'Confirm Password',
-              prefixIcon: const Icon(Icons.lock_outline),
-              suffixIcon: IconButton(
-                icon: Icon(_obscureConfirmPassword ? Icons.visibility : Icons.visibility_off),
-                onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+            labelText: 'Confirm Password',
+            prefixIcon: Icons.lock_outline,
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                color: Colors.grey[600],
               ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              filled: true,
-              fillColor: Colors.grey[50],
+              onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
             ),
           ),
           const SizedBox(height: 32),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _signUp,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green[600],
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              ),
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : const Text(
-                      'Create Account',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-            ),
+          _buildActionButton(
+            text: 'Create Account',
+            onPressed: _isLoading ? null : _signUp,
+            isLoading: _isLoading,
           ),
         ],
       ),
     );
   }
 
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String? Function(String?) validator,
+    required String labelText,
+    required IconData prefixIcon,
+    TextInputType? keyboardType,
+    bool obscureText = false,
+    Widget? suffixIcon,
+  }) {
+    return TextFormField(
+      controller: controller,
+      validator: validator,
+      keyboardType: keyboardType,
+      obscureText: obscureText,
+      style: const TextStyle(fontSize: 16),
+      decoration: InputDecoration(
+        labelText: labelText,
+        labelStyle: TextStyle(
+          color: Colors.grey[600],
+          fontSize: 16,
+        ),
+        prefixIcon: Icon(
+          prefixIcon,
+          color: Colors.grey[600],
+          size: 22,
+        ),
+        suffixIcon: suffixIcon,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.green[500]!, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Colors.red, width: 2),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Colors.red, width: 2),
+        ),
+        filled: true,
+        fillColor: Colors.grey[50],
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required String text,
+    required VoidCallback? onPressed,
+    required bool isLoading,
+  }) {
+    return Container(
+      width: double.infinity,
+      height: 56,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: onPressed != null
+              ? [Colors.green[500]!, Colors.green[600]!]
+              : [Colors.grey[300]!, Colors.grey[400]!],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: onPressed != null
+            ? [
+                BoxShadow(
+                  color: Colors.green.withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(16),
+          child: Center(
+            child: isLoading
+                ? const SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Text(
+                    text,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildErrorMessage() {
     return Container(
-      margin: const EdgeInsets.fromLTRB(32, 16, 32, 0),
+      margin: const EdgeInsets.fromLTRB(24, 16, 24, 0),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.red[50],
