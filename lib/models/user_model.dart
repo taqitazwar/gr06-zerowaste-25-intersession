@@ -36,6 +36,7 @@ class UserModel {
   final String id;
   final String email;
   final String displayName;
+  final String? profileImageUrl; // Add profile picture URL
   final LocationData? currentLocation;
   final String? fcmToken; // For push notifications
   final double rating;
@@ -48,6 +49,7 @@ class UserModel {
     required this.id,
     required this.email,
     required this.displayName,
+    this.profileImageUrl,
     this.currentLocation,
     this.fcmToken,
     this.rating = 0.0,
@@ -65,6 +67,7 @@ class UserModel {
       id: doc.id,
       email: data['email'] ?? '',
       displayName: data['displayName'] ?? '',
+      profileImageUrl: data['profileImageUrl'],
       currentLocation: data['currentLocation'] != null 
           ? LocationData.fromMap(data['currentLocation'] as Map<String, dynamic>)
           : null,
@@ -82,6 +85,7 @@ class UserModel {
     return {
       'email': email,
       'displayName': displayName,
+      'profileImageUrl': profileImageUrl,
       'currentLocation': currentLocation?.toMap(),
       'fcmToken': fcmToken,
       'rating': rating,
@@ -96,6 +100,7 @@ class UserModel {
   UserModel copyWith({
     String? email,
     String? displayName,
+    String? profileImageUrl,
     LocationData? currentLocation,
     String? fcmToken,
     double? rating,
@@ -107,6 +112,7 @@ class UserModel {
       id: id,
       email: email ?? this.email,
       displayName: displayName ?? this.displayName,
+      profileImageUrl: profileImageUrl ?? this.profileImageUrl,
       currentLocation: currentLocation ?? this.currentLocation,
       fcmToken: fcmToken ?? this.fcmToken,
       rating: rating ?? this.rating,
