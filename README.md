@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # zerowaste_app
 
 A new Flutter project.
@@ -15,6 +14,3 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
-=======
-# gr06-zerowaste-25-intersession
->>>>>>> 872396b7788c7f662c9bdb9c3ebcdda712d0f07b
