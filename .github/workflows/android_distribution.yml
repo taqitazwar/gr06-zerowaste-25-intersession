@@ -10,31 +10,49 @@ jobs:
   build-release-apk:
     runs-on: ubuntu-latest
 
+    #--------------------------------------
+    #  Make secrets available to any step
+    #--------------------------------------
+    env:
+      FIREBASE_TOKEN:      ${{ secrets.FIREBASE_TOKEN }}
+      FIREBASE_APP_ID:     ${{ secrets.FIREBASE_APP_ID }}
+      GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+      PLACES_API_KEY:      ${{ secrets.PLACES_API_KEY }}
+
     steps:
-      # 1) Checkout code
-      - uses: actions/checkout@v4
+    # 1  Check out source code
+    - uses: actions/checkout@v4
 
-      # 2) Install Flutter
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
+    # 2  Install (and cache) Flutter stable
+    - uses: subosito/flutter-action@v2
+      with:
+        channel: stable
+        cache: true
 
-      # 3) Build release APK
-      - name: Build Android release APK
-        run: |
-          flutter pub get
-          flutter build apk --release
+    # 3  Install Firebase CLI
+    - name: Install Firebase CLI
+      run: npm install -g firebase-tools
 
-      # 4) Install Firebase CLI
-      - name: Install Firebase CLI
-        run: npm install -g firebase-tools
+    # 4  Generate `.env` so Flutter’s asset bundler finds it
+    - name: Create .env for build
+      run: |
+        cat > .env <<EOF
+        GOOGLE_MAPS_API_KEY=$GOOGLE_MAPS_API_KEY
+        PLACES_API_KEY=$PLACES_API_KEY
+        EOF
+        echo ".env created:"
+        cat .env  # values will show as *** in log
 
-      # 5) Upload to Firebase App Distribution
-      - name: Upload to Firebase App Distribution
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
-        run: |
-          firebase appdistribution:distribute build/app/outputs/flutter-apk/app-release.apk ^
-            --app "$FIREBASE_APP_ID" ^
-            --groups "testers"
+    # 5  Fetch packages & build release APK
+    - name: Build Android release APK
+      run: |
+        flutter pub get
+        flutter build apk --release
+
+    # 6  Upload APK to Firebase App Distribution
+    - name: Distribute to testers
+      run: |
+        firebase appdistribution:distribute \
+          build/app/outputs/flutter-apk/app-release.apk \
+          --app "$FIREBASE_APP_ID" \
+          --groups "testers"
