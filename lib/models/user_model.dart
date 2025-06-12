@@ -1,125 +1,85 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class LocationData {
-  final double latitude;
-  final double longitude;
-  final String address;
-  final String? cityState; // e.g., "San Francisco, CA"
-
-  LocationData({
-    required this.latitude,
-    required this.longitude,
-    required this.address,
-    this.cityState,
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'latitude': latitude,
-      'longitude': longitude,
-      'address': address,
-      'cityState': cityState,
-    };
-  }
-
-  factory LocationData.fromMap(Map<String, dynamic> map) {
-    return LocationData(
-      latitude: map['latitude']?.toDouble() ?? 0.0,
-      longitude: map['longitude']?.toDouble() ?? 0.0,
-      address: map['address'] ?? '',
-      cityState: map['cityState'],
-    );
-  }
-}
-
 class UserModel {
-  final String id;
+  final String uid;
+  final String name;
   final String email;
-  final String displayName;
-  final String? profileImageUrl; // Add profile picture URL
-  final LocationData? currentLocation;
-  final String? fcmToken; // For push notifications
+  final String? profileImageUrl;
+  final GeoPoint location;
+  final String fcmToken;
   final double rating;
-  final int totalPosts;
-  final int totalClaims;
   final DateTime createdAt;
-  final DateTime lastActive;
 
   UserModel({
-    required this.id,
+    required this.uid,
+    required this.name,
     required this.email,
-    required this.displayName,
     this.profileImageUrl,
-    this.currentLocation,
-    this.fcmToken,
+    required this.location,
+    required this.fcmToken,
     this.rating = 0.0,
-    this.totalPosts = 0,
-    this.totalClaims = 0,
     required this.createdAt,
-    required this.lastActive,
   });
 
-  // Convert from Firestore document
-  factory UserModel.fromFirestore(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data()! as Map<String, dynamic>;
-    
-    return UserModel(
-      id: doc.id,
-      email: data['email'] ?? '',
-      displayName: data['displayName'] ?? '',
-      profileImageUrl: data['profileImageUrl'],
-      currentLocation: data['currentLocation'] != null 
-          ? LocationData.fromMap(data['currentLocation'] as Map<String, dynamic>)
-          : null,
-      fcmToken: data['fcmToken'],
-      rating: data['rating']?.toDouble() ?? 0.0,
-      totalPosts: data['totalPosts'] ?? 0,
-      totalClaims: data['totalClaims'] ?? 0,
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      lastActive: (data['lastActive'] as Timestamp).toDate(),
-    );
-  }
-
-  // Convert to Firestore document
-  Map<String, dynamic> toFirestore() {
+  // Convert UserModel to Map for Firestore
+  Map<String, dynamic> toMap() {
     return {
+      'uid': uid,
+      'name': name,
       'email': email,
-      'displayName': displayName,
       'profileImageUrl': profileImageUrl,
-      'currentLocation': currentLocation?.toMap(),
+      'location': location,
       'fcmToken': fcmToken,
       'rating': rating,
-      'totalPosts': totalPosts,
-      'totalClaims': totalClaims,
       'createdAt': Timestamp.fromDate(createdAt),
-      'lastActive': Timestamp.fromDate(lastActive),
     };
   }
 
-  // Copy with new values
+  // Create UserModel from Firestore Document
+  factory UserModel.fromMap(Map<String, dynamic> map) {
+    return UserModel(
+      uid: map['uid'] ?? '',
+      name: map['name'] ?? '',
+      email: map['email'] ?? '',
+      profileImageUrl: map['profileImageUrl'],
+      location: map['location'] ?? const GeoPoint(0, 0),
+      fcmToken: map['fcmToken'] ?? '',
+      rating: (map['rating'] ?? 0.0).toDouble(),
+      createdAt: map['createdAt'] != null 
+          ? (map['createdAt'] as Timestamp).toDate()
+          : DateTime.now(),
+    );
+  }
+
+  // Create UserModel from Firestore DocumentSnapshot
+  factory UserModel.fromDocument(DocumentSnapshot doc) {
+    return UserModel.fromMap(doc.data() as Map<String, dynamic>);
+  }
+
   UserModel copyWith({
+    String? uid,
+    String? name,
     String? email,
-    String? displayName,
     String? profileImageUrl,
-    LocationData? currentLocation,
+    GeoPoint? location,
     String? fcmToken,
     double? rating,
-    int? totalPosts,
-    int? totalClaims,
-    DateTime? lastActive,
+    DateTime? createdAt,
   }) {
     return UserModel(
-      id: id,
+      uid: uid ?? this.uid,
+      name: name ?? this.name,
       email: email ?? this.email,
-      displayName: displayName ?? this.displayName,
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
-      currentLocation: currentLocation ?? this.currentLocation,
+      location: location ?? this.location,
       fcmToken: fcmToken ?? this.fcmToken,
       rating: rating ?? this.rating,
-      totalPosts: totalPosts ?? this.totalPosts,
-      totalClaims: totalClaims ?? this.totalClaims,
-      createdAt: createdAt,
-      lastActive: lastActive ?? this.lastActive,
+      createdAt: createdAt ?? this.createdAt,
     );
+  }
+
+  @override
+  String toString() {
+    return 'UserModel(uid: $uid, name: $name, email: $email, rating: $rating)';
   }
 } 

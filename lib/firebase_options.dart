@@ -25,15 +25,9 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -47,31 +41,48 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyD17WelCjZ33qX_DSz8RitdKZ1gaq_LC9A',
-    appId: '1:1031956156307:web:59e782fea9047a29a3a266',
-    messagingSenderId: '1031956156307',
-    projectId: 'gr06-zerowaste-25-intersession',
-    authDomain: 'gr06-zerowaste-25-intersession.firebaseapp.com',
-    storageBucket: 'gr06-zerowaste-25-intersession.firebasestorage.app',
-    measurementId: 'G-FFCG11VB0X',
+    apiKey: 'AIzaSyCkppRwJcoUsNr8aZOPj4Ob9a446SObwaE',
+    appId: '1:739304125787:web:8bd882238ed7ea5c0fd67e',
+    messagingSenderId: '739304125787',
+    projectId: 'gr06-zerowaste-25-inters-b6030',
+    authDomain: 'gr06-zerowaste-25-inters-b6030.firebaseapp.com',
+    storageBucket: 'gr06-zerowaste-25-inters-b6030.firebasestorage.app',
+    measurementId: 'G-HKVDRC8TYZ',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBv6Sg--2_TK2y22950yy6rHMxXlsyOGC4',
-    appId: '1:1031956156307:android:c00afd4bc519dba5a3a266',
-    messagingSenderId: '1031956156307',
-    projectId: 'gr06-zerowaste-25-intersession',
-    storageBucket: 'gr06-zerowaste-25-intersession.firebasestorage.app',
+    apiKey: 'AIzaSyDg12UsX3C16C5EtO8U3ptZvL9l9YPvAAE',
+    appId: '1:739304125787:android:daad3462e9d649bc0fd67e',
+    messagingSenderId: '739304125787',
+    projectId: 'gr06-zerowaste-25-inters-b6030',
+    storageBucket: 'gr06-zerowaste-25-inters-b6030.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCgjy47b8n93tUmzeqGGLsiX6fJdPzM0R4',
-    appId: '1:1031956156307:ios:62b49be9ddbac518a3a266',
-    messagingSenderId: '1031956156307',
-    projectId: 'gr06-zerowaste-25-intersession',
-    storageBucket: 'gr06-zerowaste-25-intersession.firebasestorage.app',
-    androidClientId: '1031956156307-q73s62vkqfmp4nbdal6bt3663hplr0dt.apps.googleusercontent.com',
-    iosClientId: '1031956156307-lp65fe05rouq61ho3jed7uqtpahrko7j.apps.googleusercontent.com',
+    apiKey: 'AIzaSyCOLBt13lxGv2b5QsM9KHvxofL-JMer9UA',
+    appId: '1:739304125787:ios:c5aefef6c3ada8470fd67e',
+    messagingSenderId: '739304125787',
+    projectId: 'gr06-zerowaste-25-inters-b6030',
+    storageBucket: 'gr06-zerowaste-25-inters-b6030.firebasestorage.app',
     iosBundleId: 'com.example.zerowasteApp',
+  );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyCOLBt13lxGv2b5QsM9KHvxofL-JMer9UA',
+    appId: '1:739304125787:ios:c5aefef6c3ada8470fd67e',
+    messagingSenderId: '739304125787',
+    projectId: 'gr06-zerowaste-25-inters-b6030',
+    storageBucket: 'gr06-zerowaste-25-inters-b6030.firebasestorage.app',
+    iosBundleId: 'com.example.zerowasteApp',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyCkppRwJcoUsNr8aZOPj4Ob9a446SObwaE',
+    appId: '1:739304125787:web:d65be489b16689760fd67e',
+    messagingSenderId: '739304125787',
+    projectId: 'gr06-zerowaste-25-inters-b6030',
+    authDomain: 'gr06-zerowaste-25-inters-b6030.firebaseapp.com',
+    storageBucket: 'gr06-zerowaste-25-inters-b6030.firebasestorage.app',
+    measurementId: 'G-ZPBPEYKZ44',
   );
 }
