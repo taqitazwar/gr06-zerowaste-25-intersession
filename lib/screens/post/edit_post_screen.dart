@@ -28,6 +28,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _locationController = TextEditingController();
+  final _locationFocusNode = FocusNode();
   final _imagePicker = ImagePicker();
   final _authService = AuthService();
   
@@ -64,6 +65,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
     _titleController.dispose();
     _descriptionController.dispose();
     _locationController.dispose();
+    _locationFocusNode.dispose();
     super.dispose();
   }
 
@@ -722,6 +724,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
           debounceTime: 600,
           countries: const ["us", "ca"],
           isLatLngRequired: true,
+          focusNode: _locationFocusNode,
           getPlaceDetailWithLatLng: (Prediction prediction) async {
             setState(() {
               _selectedAddress = prediction.description ?? '';
