@@ -21,6 +21,7 @@ class AddPostScreen extends StatefulWidget {
 
 class _AddPostScreenState extends State<AddPostScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _locationController = TextEditingController();
   final _imagePicker = ImagePicker();
@@ -37,6 +38,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
 
   @override
   void dispose() {
+    _titleController.dispose();
     _descriptionController.dispose();
     _locationController.dispose();
     super.dispose();
@@ -44,39 +46,46 @@ class _AddPostScreenState extends State<AddPostScreen> {
 
   Future<void> _pickImage() async {
     try {
-      // Show bottom sheet to choose camera or gallery
       final ImageSource? source = await showModalBottomSheet<ImageSource>(
         context: context,
+        backgroundColor: Colors.white,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         builder: (context) => SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Add Food Photo',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
                 ),
-                const SizedBox(height: 20),
-                ListTile(
-                  leading: const Icon(Icons.camera_alt, color: AppColors.primary),
-                  title: const Text('Take Photo'),
-                  onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Add Food Photo',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
                 ),
-                ListTile(
-                  leading: const Icon(Icons.photo_library, color: AppColors.primary),
-                  title: const Text('Choose from Gallery'),
-                  onTap: () => Navigator.pop(context, ImageSource.gallery),
-                ),
-                const SizedBox(height: 10),
-              ],
-            ),
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: const Icon(Icons.camera_alt, color: AppColors.primary),
+                title: const Text('Take Photo'),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library, color: AppColors.primary),
+                title: const Text('Choose from Gallery'),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+              const SizedBox(height: 20),
+            ],
           ),
         ),
       );
@@ -267,11 +276,6 @@ class _AddPostScreenState extends State<AddPostScreen> {
 
   Future<void> _submitPost() async {
     if (!_formKey.currentState!.validate()) return;
-    
-    if (_imageUrl == null) {
-      _showSnackBar('Please add an image', isError: true);
-      return;
-    }
 
     if (_selectedLocation == null) {
       _showSnackBar('Please select a location', isError: true);
@@ -282,49 +286,36 @@ class _AddPostScreenState extends State<AddPostScreen> {
 
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      if (user == null) {
+        _showSnackBar('You must be logged in to post', isError: true);
+        setState(() => _isLoading = false);
+        return;
+      }
 
-      final postId = const Uuid().v4();
-      final post = PostModel(
-        postId: postId,
-        postedBy: user.uid,
-        description: _descriptionController.text.trim(),
-        imageUrl: _imageUrl!,
-        expiry: _selectedExpiry,
-        location: _selectedLocation!,
-        address: _selectedAddress,
-        dietaryTags: _selectedDietaryTags,
-        timestamp: DateTime.now(),
-      );
+      final newPost = {
+        'postedBy': user.uid,
+        'title': _titleController.text.trim(),
+        'description': _descriptionController.text.trim(),
+        'imageUrl': _imageUrl ?? '',
+        'expiry': Timestamp.fromDate(_selectedExpiry),
+        'location': _selectedLocation,
+        'address': _selectedAddress,
+        'status': PostStatus.available.name,
+        'dietaryTags': _selectedDietaryTags.map((tag) => tag.name).toList(),
+        'timestamp': Timestamp.fromDate(DateTime.now()),
+      };
 
-      await FirebaseFirestore.instance
-          .collection('posts')
-          .doc(postId)
-          .set(post.toMap());
+      await FirebaseFirestore.instance.collection('posts').add(newPost);
 
       if (mounted) {
-        _showSnackBar('Food post shared successfully! 🎉');
-        _resetForm();
+        _showSnackBar('Food post added successfully!');
+        Navigator.pop(context, true); // Return true to indicate success
       }
     } catch (e) {
-      _showSnackBar('Failed to share post. Please try again.', isError: true);
+      _showSnackBar('Failed to add post: $e', isError: true);
     } finally {
       setState(() => _isLoading = false);
     }
-  }
-
-  void _resetForm() {
-    _formKey.currentState?.reset();
-    _descriptionController.clear();
-    _locationController.clear();
-    setState(() {
-      _selectedImage = null;
-      _imageUrl = null;
-      _selectedDietaryTags.clear();
-      _selectedLocation = null;
-      _selectedAddress = '';
-      _selectedExpiry = DateTime.now().add(const Duration(days: 1));
-    });
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
@@ -342,362 +333,142 @@ class _AddPostScreenState extends State<AddPostScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Header
-              const Text(
-                'Share Food',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Help reduce food waste by sharing!',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: AppColors.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              
-              const SizedBox(height: 32),
-              
-              // Image Section
-              _buildImageSection(),
-              
-              const SizedBox(height: 24),
-              
-              // Description
-              TextFormField(
-                controller: _descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Food Description',
-                  hintText: 'Tell others about the food you\'re sharing...',
-                  prefixIcon: Icon(Icons.restaurant),
-                ),
-                maxLines: 3,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please describe the food';
-                  }
-                  if (value.trim().length < 10) {
-                    return 'Please provide more details (at least 10 characters)';
-                  }
-                  return null;
-                },
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Location Section
-              _buildLocationSection(),
-              
-              const SizedBox(height: 24),
-              
-              // Expiry Date
-              _buildExpirySection(),
-              
-              const SizedBox(height: 24),
-              
-              // Dietary Tags
-              _buildDietaryTagsSection(),
-              
-              const SizedBox(height: 32),
-              
-              // Submit Button
-              ElevatedButton(
-                onPressed: _isLoading ? null : _submitPost,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: _isLoading
-                    ? const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(AppColors.onPrimary),
-                            ),
-                          ),
-                          SizedBox(width: 12),
-                          Text('Sharing...'),
-                        ],
-                      )
-                    : const Text(
-                        'Share Food 🍽️',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-              ),
-              
-              const SizedBox(height: 40),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildImageSection() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
+      body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Food Photo',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+            // Custom Header
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: AppColors.surface,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    offset: Offset(0, 2),
+                    blurRadius: 4,
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 16),
-            if (_selectedImage != null || _imageUrl != null) ...[
-              Container(
-                height: 200,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  image: _imageUrl != null
-                      ? DecorationImage(
-                          image: NetworkImage(_imageUrl!),
-                          fit: BoxFit.cover,
-                        )
-                      : null,
-                ),
-                child: _isUploadingImage
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                        ),
-                      )
-                    : null,
-              ),
-              const SizedBox(height: 12),
-              Row(
+              child: const Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _pickImage,
-                      icon: const Icon(Icons.edit),
-                      label: const Text('Change Photo'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          _selectedImage = null;
-                          _imageUrl = null;
-                        });
-                      },
-                      icon: const Icon(Icons.delete, color: AppColors.error),
-                      label: const Text('Remove', style: TextStyle(color: AppColors.error)),
+                    child: Text(
+                      'Share Food',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.onSurface,
+                      ),
                     ),
                   ),
                 ],
               ),
-            ] else ...[
-              GestureDetector(
-                onTap: _pickImage,
-                child: Container(
-                  height: 200,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: AppColors.outline,
-                      style: BorderStyle.solid,
-                      width: 2,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    color: AppColors.surfaceVariant.withOpacity(0.3),
-                  ),
-                  child: const Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.add_a_photo,
-                        size: 64,
-                        color: AppColors.primary,
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        'Tap to add photo',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: AppColors.onSurfaceVariant,
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        'A good photo helps others see what you\'re sharing!',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.onSurfaceVariant,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLocationSection() {
-    // Get API key from environment variables
-    final apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'];
-    
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Pickup Location',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
             ),
-            const SizedBox(height: 16),
-            GooglePlaceAutoCompleteTextField(
-              textEditingController: _locationController,
-              googleAPIKey: apiKey ?? '',
-              inputDecoration: const InputDecoration(
-                labelText: 'Search location',
-                hintText: 'Enter pickup address...',
-                prefixIcon: Icon(Icons.location_on),
-              ),
-              debounceTime: 600,
-              countries: const ["us", "ca"], // Restrict to US and Canada
-              isLatLngRequired: true,
-              getPlaceDetailWithLatLng: (Prediction prediction) async {
-                setState(() {
-                  _selectedAddress = prediction.description ?? '';
-                  if (prediction.lat != null && prediction.lng != null) {
-                    _selectedLocation = GeoPoint(
-                      double.parse(prediction.lat!),
-                      double.parse(prediction.lng!),
-                    );
-                  }
-                });
-              },
-              itemClick: (Prediction prediction) {
-                _locationController.text = prediction.description ?? '';
-                _locationController.selection = TextSelection.fromPosition(
-                  TextPosition(offset: prediction.description?.length ?? 0),
-                );
-              },
-            ),
-            if (_selectedAddress.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.check_circle, color: AppColors.primary, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Selected: $_selectedAddress',
-                        style: const TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildExpirySection() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Expiry Date & Time',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 16),
-            GestureDetector(
-              onTap: _selectExpiry,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppColors.outline),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.schedule, color: AppColors.primary),
-                    const SizedBox(width: 12),
-                    Expanded(
+            // Form Content
+            Expanded(
+              child: _isLoading
+                  ? const Center(
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text(
-                            'Available until',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.onSurfaceVariant,
-                            ),
+                          CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                           ),
+                          SizedBox(height: 16),
                           Text(
-                            '${_selectedExpiry.day}/${_selectedExpiry.month}/${_selectedExpiry.year} at ${_selectedExpiry.hour.toString().padLeft(2, '0')}:${_selectedExpiry.minute.toString().padLeft(2, '0')}',
-                            style: const TextStyle(
+                            'Posting your food...',
+                            style: TextStyle(
                               fontSize: 16,
-                              fontWeight: FontWeight.w500,
+                              color: AppColors.onSurfaceVariant,
                             ),
                           ),
                         ],
                       ),
+                    )
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Image Section
+                            _buildImageSection(),
+                            const SizedBox(height: 24),
+
+                            // Title Field
+                            _buildTextField(
+                              controller: _titleController,
+                              label: 'Title',
+                              hint: 'E.g., Fresh homemade bread',
+                              icon: Icons.title,
+                              maxLength: 50,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'Please enter a title';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Description Field
+                            _buildTextField(
+                              controller: _descriptionController,
+                              label: 'Description',
+                              hint: 'Describe the food and any relevant information',
+                              icon: Icons.description,
+                              maxLines: 4,
+                              maxLength: 500,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'Please enter a description';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 24),
+
+                            // Location Section
+                            _buildLocationSection(),
+                            const SizedBox(height: 24),
+
+                            // Expiry Section
+                            _buildExpirySection(),
+                            const SizedBox(height: 24),
+
+                            // Dietary Tags
+                            _buildDietaryTagsSection(),
+                            const SizedBox(height: 32),
+
+                            // Submit Button
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: _isLoading ? null : _submitPost,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  elevation: 2,
+                                ),
+                                child: const Text(
+                                  'Share Food',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 32),
+                          ],
+                        ),
+                      ),
                     ),
-                    const Icon(Icons.edit, color: AppColors.onSurfaceVariant),
-                  ],
-                ),
-              ),
             ),
           ],
         ),
@@ -705,61 +476,398 @@ class _AddPostScreenState extends State<AddPostScreen> {
     );
   }
 
-  Widget _buildDietaryTagsSection() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Dietary Tags',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: _showDietaryTagsDialog,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Tags'),
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    int maxLines = 1,
+    int? maxLength,
+    String? Function(String?)? validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$label *',
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.onSurface,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          maxLines: maxLines,
+          maxLength: maxLength,
+          validator: validator,
+          style: const TextStyle(fontSize: 16),
+          decoration: InputDecoration(
+            hintText: hint,
+            prefixIcon: Icon(icon, color: AppColors.primary),
+            filled: true,
+            fillColor: Colors.grey[50],
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.primary, width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImageSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Food Photo',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: AppColors.onSurface,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (_selectedImage != null || _imageUrl != null) ...[
+          Container(
+            height: 200,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            if (_selectedDietaryTags.isEmpty) ...[
-              const Text(
-                'No dietary tags selected',
-                style: TextStyle(
-                  color: AppColors.onSurfaceVariant,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ] else ...[
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _selectedDietaryTags
-                    .map((tag) => Chip(
-                          label: Text(_getDietaryTagDisplayName(tag)),
-                          onDeleted: () {
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Stack(
+                children: [
+                  if (_imageUrl != null)
+                    Image.network(
+                      _imageUrl!,
+                      height: 200,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                  if (_isUploadingImage)
+                    Container(
+                      color: Colors.black.withOpacity(0.5),
+                      child: const Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      ),
+                    ),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Row(
+                      children: [
+                        IconButton(
+                          onPressed: _pickImage,
+                          icon: const Icon(Icons.edit, color: Colors.white),
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.black.withOpacity(0.5),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: () {
                             setState(() {
-                              _selectedDietaryTags.remove(tag);
+                              _selectedImage = null;
+                              _imageUrl = null;
                             });
                           },
-                          backgroundColor: AppColors.primary.withOpacity(0.1),
-                          labelStyle: const TextStyle(color: AppColors.primary),
-                          deleteIconColor: AppColors.primary,
-                        ))
-                    .toList(),
+                          icon: const Icon(Icons.delete, color: Colors.white),
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.red.withOpacity(0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
+          ),
+        ] else ...[
+          GestureDetector(
+            onTap: _pickImage,
+            child: Container(
+              height: 200,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.grey[300]!,
+                  width: 2,
+                  style: BorderStyle.solid,
+                ),
+                color: Colors.grey[50],
+              ),
+              child: const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.add_a_photo,
+                    size: 48,
+                    color: AppColors.primary,
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    'Tap to add photo',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'A good photo helps others see what you\'re sharing!',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildLocationSection() {
+    final apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'];
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Pickup Location *',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.onSurface,
+          ),
+        ),
+        const SizedBox(height: 8),
+        GooglePlaceAutoCompleteTextField(
+          textEditingController: _locationController,
+          googleAPIKey: apiKey ?? '',
+          inputDecoration: InputDecoration(
+            hintText: 'Search for pickup location...',
+            prefixIcon: const Icon(Icons.location_on, color: AppColors.primary),
+            filled: true,
+            fillColor: Colors.grey[50],
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.primary, width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          ),
+          debounceTime: 600,
+          countries: const ["us", "ca"],
+          isLatLngRequired: true,
+          getPlaceDetailWithLatLng: (Prediction prediction) async {
+            setState(() {
+              _selectedAddress = prediction.description ?? '';
+              if (prediction.lat != null && prediction.lng != null) {
+                _selectedLocation = GeoPoint(
+                  double.parse(prediction.lat!),
+                  double.parse(prediction.lng!),
+                );
+              }
+            });
+          },
+          itemClick: (Prediction prediction) {
+            _locationController.text = prediction.description ?? '';
+            _locationController.selection = TextSelection.fromPosition(
+              TextPosition(offset: prediction.description?.length ?? 0),
+            );
+          },
+        ),
+        if (_selectedAddress.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.check_circle, color: AppColors.primary, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Selected: $_selectedAddress',
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildExpirySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Expiry Date & Time *',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.onSurface,
+          ),
+        ),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: _selectExpiry,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[300]!),
+              color: Colors.grey[50],
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.schedule, color: AppColors.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Available until',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.onSurfaceVariant,
+                        ),
+                      ),
+                      Text(
+                        '${_selectedExpiry.day}/${_selectedExpiry.month}/${_selectedExpiry.year} at ${_selectedExpiry.hour.toString().padLeft(2, '0')}:${_selectedExpiry.minute.toString().padLeft(2, '0')}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.edit, color: AppColors.onSurfaceVariant, size: 20),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDietaryTagsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Dietary Tags',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.onSurface,
+              ),
+            ),
+            TextButton.icon(
+              onPressed: _showDietaryTagsDialog,
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Add Tags'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+              ),
+            ),
           ],
         ),
-      ),
+        const SizedBox(height: 8),
+        if (_selectedDietaryTags.isEmpty) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[300]!),
+              color: Colors.grey[50],
+            ),
+            child: const Text(
+              'No dietary tags selected',
+              style: TextStyle(
+                color: AppColors.onSurfaceVariant,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        ] else ...[
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _selectedDietaryTags
+                .map((tag) => Chip(
+                      label: Text(_getDietaryTagDisplayName(tag)),
+                      onDeleted: () {
+                        setState(() {
+                          _selectedDietaryTags.remove(tag);
+                        });
+                      },
+                      backgroundColor: AppColors.primary.withOpacity(0.1),
+                      labelStyle: const TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      deleteIconColor: AppColors.primary,
+                      side: BorderSide(color: AppColors.primary.withOpacity(0.3)),
+                    ))
+                .toList(),
+          ),
+        ],
+      ],
     );
   }
 } 
