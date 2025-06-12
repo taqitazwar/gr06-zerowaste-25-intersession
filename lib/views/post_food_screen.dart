@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+// import 'package:permission_handler/permission_handler.dart';
+// import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
@@ -11,7 +11,8 @@ import '../models/user_model.dart';
 import '../controllers/food_post_controller.dart';
 
 // Google Places API configuration
-String get kGoogleApiKey => dotenv.env['GOOGLE_PLACES_API_KEY'] ?? 'YOUR_GOOGLE_PLACES_API_KEY';
+String get kGoogleApiKey => 'AIzaSyBv6Sg--2_TK2y22950yy6rHMxXlsyOGC4'; // Using Firebase API key temporarily
+// String get kGoogleApiKey => dotenv.env['GOOGLE_PLACES_API_KEY'] ?? 'YOUR_GOOGLE_PLACES_API_KEY';
 
 class AddressSuggestion {
   final String description;
