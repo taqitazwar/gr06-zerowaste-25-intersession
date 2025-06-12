@@ -11,6 +11,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../models/models.dart';
 import '../../core/theme.dart';
 import '../../services/auth_service.dart';
+import '../home/home_screen.dart';
 
 class AddPostScreen extends StatefulWidget {
   const AddPostScreen({super.key});
@@ -311,7 +312,14 @@ class _AddPostScreenState extends State<AddPostScreen> {
 
       if (mounted) {
         _showSnackBar('Food post added successfully!');
-        Navigator.pop(context, true); // Return true to indicate success
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop(true);
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const HomeScreen(initialIndex: 1)),
+          );
+        }
       }
     } catch (e) {
       _showSnackBar('Failed to add post: $e', isError: true);
