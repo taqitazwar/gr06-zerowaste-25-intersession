@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/theme.dart';
 import '../../models/post_model.dart';
 import '../post/add_post_screen.dart';
+import '../post/post_details_screen.dart';
 
 class FoodListingsScreen extends StatefulWidget {
   const FoodListingsScreen({Key? key}) : super(key: key);
@@ -477,19 +478,9 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
   }
 
   void _viewPostDetails(PostModel post) {
-    // TODO: Navigate to post details screen
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Feature Coming Soon'),
-        content: const Text('Post details view will be implemented in the next update.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => PostDetailsScreen(post: post)),
     );
   }
 
