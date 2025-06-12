@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../../core/theme.dart';
 import '../../models/post_model.dart';
 import '../post/add_post_screen.dart';
+import '../post/edit_post_screen.dart';
+import '../post/post_details_screen.dart';
 
 class MyPostsScreen extends StatefulWidget {
   const MyPostsScreen({Key? key}) : super(key: key);
@@ -447,9 +449,15 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () {
-                          // TODO: Navigate to edit screen
-                          _showSnackBar('Edit functionality coming soon!');
+                        onPressed: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => EditPostScreen(post: post)),
+                          );
+                          
+                          if (result == true) {
+                            _fetchMyPosts(); // Refresh the list after editing
+                          }
                         },
                         icon: const Icon(Icons.edit_outlined, size: 18),
                         label: const Text('Edit'),
