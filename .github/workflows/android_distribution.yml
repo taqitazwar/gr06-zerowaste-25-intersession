@@ -1,0 +1,40 @@
+name: Android Distribution
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-release-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) Checkout code
+      - uses: actions/checkout@v4
+
+      # 2) Install Flutter
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      # 3) Build release APK
+      - name: Build Android release APK
+        run: |
+          flutter pub get
+          flutter build apk --release
+
+      # 4) Install Firebase CLI
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      # 5) Upload to Firebase App Distribution
+      - name: Upload to Firebase App Distribution
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+        run: |
+          firebase appdistribution:distribute build/app/outputs/flutter-apk/app-release.apk ^
+            --app "$FIREBASE_APP_ID" ^
+            --groups "testers"
