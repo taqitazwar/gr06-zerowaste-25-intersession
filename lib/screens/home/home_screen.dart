@@ -5,6 +5,7 @@ import '../../core/theme.dart';
 import '../auth/sign_in_screen.dart';
 import '../profile/profile_screen.dart';
 import '../post/add_post_screen.dart';
+import '../food/food_listings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,7 +20,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Widget> _screens = [
     const MapScreen(),
-    const PostsScreen(),
+    const FoodListingsScreen(),
     const AddPostScreen(),
     const ChatsScreen(),
     const ProfileScreen(),

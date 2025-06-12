@@ -18,6 +18,7 @@ enum DietaryTag {
 class PostModel {
   final String postId;
   final String postedBy;
+  final String title;
   final String description;
   final String imageUrl;
   final DateTime expiry;
@@ -32,6 +33,7 @@ class PostModel {
   PostModel({
     required this.postId,
     required this.postedBy,
+    required this.title,
     required this.description,
     required this.imageUrl,
     required this.expiry,
@@ -49,6 +51,7 @@ class PostModel {
     return {
       'postId': postId,
       'postedBy': postedBy,
+      'title': title,
       'description': description,
       'imageUrl': imageUrl,
       'expiry': Timestamp.fromDate(expiry),
@@ -67,6 +70,7 @@ class PostModel {
     return PostModel(
       postId: map['postId'] ?? '',
       postedBy: map['postedBy'] ?? '',
+      title: map['title'] ?? (map['description'] != null ? (map['description'] as String).split('\n').first : ''),
       description: map['description'] ?? '',
       imageUrl: map['imageUrl'] ?? '',
       expiry: map['expiry'] != null 
@@ -104,6 +108,7 @@ class PostModel {
   PostModel copyWith({
     String? postId,
     String? postedBy,
+    String? title,
     String? description,
     String? imageUrl,
     DateTime? expiry,
@@ -118,6 +123,7 @@ class PostModel {
     return PostModel(
       postId: postId ?? this.postId,
       postedBy: postedBy ?? this.postedBy,
+      title: title ?? this.title,
       description: description ?? this.description,
       imageUrl: imageUrl ?? this.imageUrl,
       expiry: expiry ?? this.expiry,
@@ -174,6 +180,6 @@ class PostModel {
 
   @override
   String toString() {
-    return 'PostModel(postId: $postId, description: $description, status: $status)';
+    return 'PostModel(postId: $postId, title: $title, description: $description, status: $status)';
   }
 } 

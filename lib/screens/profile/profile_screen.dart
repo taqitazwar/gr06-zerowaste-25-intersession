@@ -6,6 +6,7 @@ import '../../services/auth_service.dart';
 import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../auth/sign_in_screen.dart';
+import '../posts/my_posts_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -207,6 +208,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             
             // Stats Section
             _buildStatsSection(),
+            
+            const SizedBox(height: 32),
+            
+            // Manage Posts Section
+            _buildManagePostsSection(),
             
             const SizedBox(height: 32),
             
@@ -447,6 +453,67 @@ class _ProfileScreenState extends State<ProfileScreen> {
           textAlign: TextAlign.center,
         ),
       ],
+    );
+  }
+
+  Widget _buildManagePostsSection() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Manage Posts',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.restaurant, color: AppColors.primary),
+              ),
+              title: const Text('My Food Posts'),
+              subtitle: const Text('View, edit, and delete your shared food'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const MyPostsScreen(),
+                  ),
+                );
+              },
+              contentPadding: EdgeInsets.zero,
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.history, color: AppColors.secondary),
+              ),
+              title: const Text('Claim History'),
+              subtitle: const Text('View food you\'ve claimed from others'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                // TODO: Navigate to claim history
+                _showSnackBar('Claim history coming soon!');
+              },
+              contentPadding: EdgeInsets.zero,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
