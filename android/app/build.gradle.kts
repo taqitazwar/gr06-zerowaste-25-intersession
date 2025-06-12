@@ -7,11 +7,11 @@ plugins {
 
 android {
     namespace = "com.example.zerowaste_app"
-    compileSdk = 33 // Or flutter.compileSdkVersion if you have it in flutter config
+    compileSdk = 35 // Or flutter.compileSdkVersion if you have it in flutter config
     defaultConfig {
         applicationId = "com.example.zerowaste_app"
-        minSdk = 21 // Or flutter.minSdkVersion
-        targetSdk = 33 // Or flutter.targetSdkVersion
+        minSdk = 23 // Or flutter.minSdkVersion
+        targetSdk = 35 // Or flutter.targetSdkVersion
         versionCode = 1 // Or flutter.versionCode
         versionName = "1.0" // Or flutter.versionName
     }

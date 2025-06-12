@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+// import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'firebase_options.dart';
 import 'views/auth_screen.dart';
 import 'views/profile_screen.dart';
@@ -11,10 +11,13 @@ import 'controllers/user_controller.dart';
 import 'controllers/food_post_controller.dart';
 import 'models/user_model.dart';
 import 'models/food_post_model.dart';
+import 'screens/interactive_map_screen.dart';
+// import 'views/mock_map_screen.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
+  // await dotenv.load(fileName: ".env");
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -389,58 +392,79 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildQuickActions() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+Widget _buildQuickActions() {
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.1),
+          blurRadius: 10,
+          offset: const Offset(0, 5),
+        ),
+      ],
+    ),
+    child: Column(
+      children: [
+        Text(
+          'Quick Actions',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey[800],
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Text(
-            'Quick Actions',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionButton(
+                'Food Map',
+                Icons.map,
+                Colors.green,
+                () => _navigateToMap(), // ADD this method
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildActionButton(
-                  'Find Food',
-                  Icons.search,
-                  Colors.blue,
-                  () => _showComingSoon('Find Food'),
-                ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildActionButton(
+                'My Posts',
+                Icons.list,
+                Colors.orange,
+                () => _showComingSoon('My Posts'),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildActionButton(
-                  'My Posts',
-                  Icons.list,
-                  Colors.orange,
-                  () => _showComingSoon('My Posts'),
-                ),
-              ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+void _navigateToMap() {
+  if (_userProfile != null) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => InteractiveMapScreen(userProfile: _userProfile!),
       ),
     );
   }
+}
 
+// void _navigateToMap() {
+//   if (_userProfile != null) {
+//     Navigator.push(
+//       context,
+//       MaterialPageRoute(
+//         builder: (context) => MockMapScreen(userProfile: _userProfile!), // Use MockMapScreen
+//       ),
+//     );
+//   }
+// }
   Widget _buildActionButton(
     String label,
     IconData icon,
