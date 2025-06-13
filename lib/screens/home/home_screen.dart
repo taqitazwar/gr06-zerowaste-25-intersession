@@ -6,6 +6,7 @@ import '../auth/sign_in_screen.dart';
 import '../profile/profile_screen.dart';
 import '../post/add_post_screen.dart';
 import '../food/food_listings_screen.dart';
+import '../map/map_view_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final int initialIndex;
@@ -20,7 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _authService = AuthService();
 
   final List<Widget> _screens = [
-    const MapScreen(),
+    const MapViewScreen(),
     const FoodListingsScreen(),
     const AddPostScreen(),
     const ChatsScreen(),
@@ -150,47 +151,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// Placeholder screens - will be implemented later
-class MapScreen extends StatelessWidget {
-  const MapScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: AppColors.background,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.map,
-              size: 80,
-              color: AppColors.primary,
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Map View',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppColors.onSurface,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Find food near you',
-              style: TextStyle(
-                fontSize: 16,
-                color: AppColors.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class PostsScreen extends StatelessWidget {
   const PostsScreen({super.key});
 
@@ -249,7 +209,7 @@ class ChatsScreen extends StatelessWidget {
             ),
             SizedBox(height: 16),
             Text(
-              'Messages',
+              'Chats',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -258,7 +218,7 @@ class ChatsScreen extends StatelessWidget {
             ),
             SizedBox(height: 8),
             Text(
-              'Chat with other users',
+              'Connect with others',
               style: TextStyle(
                 fontSize: 16,
                 color: AppColors.onSurfaceVariant,
