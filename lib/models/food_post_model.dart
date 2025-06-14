@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'user_model.dart';
+import 'location_data.dart';
 
 enum FoodPostStatus {
   available,
@@ -83,19 +84,20 @@ class FoodPostModel {
   // Convert from Firestore document
   factory FoodPostModel.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data()! as Map<String, dynamic>;
-    
+
     return FoodPostModel(
       id: doc.id,
       donorId: data['donorId'] ?? '',
       title: data['title'] ?? '',
       description: data['description'] ?? '',
       imageUrls: List<String>.from(data['imageUrls'] ?? []),
-      pickupLocation: LocationData.fromMap(data['pickupLocation'] as Map<String, dynamic>),
+      pickupLocation:
+          LocationData.fromMap(data['pickupLocation'] as Map<String, dynamic>),
       dietaryTags: (data['dietaryTags'] as List<dynamic>? ?? [])
           .map((tag) => DietaryTag.values.firstWhere(
-            (e) => e.toString().split('.').last == tag,
-            orElse: () => DietaryTag.organic,
-          ))
+                (e) => e.toString().split('.').last == tag,
+                orElse: () => DietaryTag.organic,
+              ))
           .toList(),
       expiryTime: (data['expiryTime'] as Timestamp).toDate(),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
@@ -105,7 +107,7 @@ class FoodPostModel {
         orElse: () => FoodPostStatus.available,
       ),
       claimedBy: data['claimedBy'],
-      claimedAt: data['claimedAt'] != null 
+      claimedAt: data['claimedAt'] != null
           ? (data['claimedAt'] as Timestamp).toDate()
           : null,
       pickupInstructions: data['pickupInstructions'],
@@ -120,7 +122,8 @@ class FoodPostModel {
       'description': description,
       'imageUrls': imageUrls,
       'pickupLocation': pickupLocation.toMap(),
-      'dietaryTags': dietaryTags.map((tag) => tag.toString().split('.').last).toList(),
+      'dietaryTags':
+          dietaryTags.map((tag) => tag.toString().split('.').last).toList(),
       'expiryTime': Timestamp.fromDate(expiryTime),
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
@@ -170,9 +173,9 @@ class FoodPostModel {
   bool get isAvailable => status == FoodPostStatus.available;
   bool get isClaimed => status == FoodPostStatus.claimed;
   bool get isExpired => DateTime.now().isAfter(expiryTime);
-  
+
   // Get dietary tags as readable strings
   List<String> get dietaryTagsAsStrings {
     return dietaryTags.map((tag) => tag.displayName).toList();
   }
-} 
+}

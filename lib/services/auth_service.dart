@@ -1,10 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../models/models.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   // Get current user
   User? get currentUser => _auth.currentUser;
@@ -63,15 +65,15 @@ class AuthService {
         uid: user.uid,
         name: name,
         email: user.email ?? '',
-        location: const GeoPoint(0, 0), // Will be updated when user sets location
+        location: const GeoPoint(
+          0,
+          0,
+        ), // Will be updated when user sets location
         fcmToken: '', // Will be updated when FCM token is available
         createdAt: DateTime.now(),
       );
 
-      await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .set(userModel.toMap());
+      await _firestore.collection('users').doc(user.uid).set(userModel.toMap());
     } catch (e) {
       print('Error creating user document: $e');
       rethrow;
@@ -106,9 +108,7 @@ class AuthService {
   // Update FCM token
   Future<void> updateFCMToken(String uid, String token) async {
     try {
-      await _firestore.collection('users').doc(uid).update({
-        'fcmToken': token,
-      });
+      await _firestore.collection('users').doc(uid).update({'fcmToken': token});
     } catch (e) {
       print('Error updating FCM token: $e');
       rethrow;
@@ -128,7 +128,7 @@ class AuthService {
   // Sign out
   Future<void> signOut() async {
     try {
-      await _auth.signOut();
+      await Future.wait([_auth.signOut(), _googleSignIn.signOut()]);
     } catch (e) {
       print('Error signing out: $e');
       rethrow;
@@ -142,7 +142,7 @@ class AuthService {
       if (user != null) {
         // Delete user document from Firestore
         await _firestore.collection('users').doc(user.uid).delete();
-        
+
         // Delete authentication account
         await user.delete();
       }
@@ -161,4 +161,51 @@ class AuthService {
       rethrow;
     }
   }
-} 
+
+  // Sign in with Google
+  Future<UserCredential?> signInWithGoogle() async {
+    try {
+      // Trigger the authentication flow
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
+      if (googleUser == null) {
+        print('Google Sign In was cancelled by user');
+        return null;
+      }
+
+      // Obtain the auth details from the request
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      // Create a new credential
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // Sign in to Firebase with the Google credential
+      final UserCredential result = await _auth.signInWithCredential(
+        credential,
+      );
+
+      // Create user document in Firestore if it doesn't exist
+      if (result.user != null) {
+        final userDoc = await _firestore
+            .collection('users')
+            .doc(result.user!.uid)
+            .get();
+        if (!userDoc.exists) {
+          await createUserDocument(
+            result.user!,
+            result.user!.displayName ?? 'User',
+          );
+        }
+      }
+
+      return result;
+    } catch (e) {
+      print('Error signing in with Google: $e');
+      rethrow;
+    }
+  }
+}

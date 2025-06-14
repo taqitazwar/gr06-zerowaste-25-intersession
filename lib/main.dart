@@ -11,32 +11,69 @@ import 'screens/home/home_screen.dart';
 import 'services/notification_service.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // Load environment variables
   try {
-    await dotenv.load(fileName: ".env");
-  } catch (e) {
-    debugPrint('Error loading environment variables: $e');
-    // Continue execution even if .env fails to load
-  }
+    // Ensure Flutter is initialized
+    WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    // Load environment variables
+    try {
+      await dotenv.load(fileName: ".env");
+    } catch (e) {
+      debugPrint('Error loading environment variables: $e');
+      // Continue execution even if .env fails to load
+    }
 
-  // Initialize SharedPreferences
-  final prefs = await SharedPreferences.getInstance();
+    // Initialize Firebase
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
 
-  runApp(
-    MultiProvider(
-      providers: [
-        Provider<NotificationService>(
-          create: (_) => NotificationService(prefs),
+    // Initialize SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+
+    // Initialize NotificationService
+    final notificationService = NotificationService();
+    await notificationService.initialize(prefs);
+
+    // Run the app with providers
+    runApp(
+      MultiProvider(
+        providers: [
+          Provider<NotificationService>(create: (_) => notificationService),
+        ],
+        child: const ZeroWasteApp(),
+      ),
+    );
+  } catch (e, stackTrace) {
+    debugPrint('Error during app initialization: $e');
+    debugPrint('Stack trace: $stackTrace');
+    // Show error UI instead of crashing
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red, size: 60),
+                const SizedBox(height: 16),
+                const Text(
+                  'Failed to initialize app',
+                  style: TextStyle(fontSize: 20),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Error: ${e.toString()}',
+                  style: const TextStyle(color: Colors.red),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
         ),
-      ],
-      child: const ZeroWasteApp(),
-    ),
-  );
+      ),
+    );
+  }
 }
 
 class ZeroWasteApp extends StatelessWidget {
@@ -81,6 +118,32 @@ class AuthWrapper extends StatelessWidget {
                       fontSize: 16,
                       color: AppColors.onSurfaceVariant,
                     ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Handle errors
+        if (snapshot.hasError) {
+          return Scaffold(
+            backgroundColor: AppColors.background,
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 60),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Authentication Error',
+                    style: TextStyle(fontSize: 20),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Error: ${snapshot.error}',
+                    style: const TextStyle(color: Colors.red),
+                    textAlign: TextAlign.center,
                   ),
                 ],
               ),

@@ -12,6 +12,7 @@ import '../../models/models.dart';
 import '../../core/theme.dart';
 import '../../services/auth_service.dart';
 import '../home/home_screen.dart';
+import '../../models/location_data.dart';
 
 class AddPostScreen extends StatefulWidget {
   const AddPostScreen({super.key});
@@ -28,7 +29,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
   final _locationFocusNode = FocusNode();
   final _imagePicker = ImagePicker();
   final _authService = AuthService();
-  
+
   XFile? _selectedImage;
   String? _imageUrl;
   bool _isLoading = false;
@@ -83,7 +84,8 @@ class _AddPostScreenState extends State<AddPostScreen> {
                 onTap: () => Navigator.pop(context, ImageSource.camera),
               ),
               ListTile(
-                leading: const Icon(Icons.photo_library, color: AppColors.primary),
+                leading:
+                    const Icon(Icons.photo_library, color: AppColors.primary),
                 title: const Text('Choose from Gallery'),
                 onTap: () => Navigator.pop(context, ImageSource.gallery),
               ),
@@ -117,7 +119,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
     if (_selectedImage == null) return;
 
     setState(() => _isUploadingImage = true);
-    
+
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
@@ -317,7 +319,8 @@ class _AddPostScreenState extends State<AddPostScreen> {
         } else {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const HomeScreen(initialIndex: 1)),
+            MaterialPageRoute(
+                builder: (_) => const HomeScreen(initialIndex: 1)),
           );
         }
       }
@@ -382,7 +385,8 @@ class _AddPostScreenState extends State<AddPostScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                                AppColors.primary),
                           ),
                           SizedBox(height: 16),
                           Text(
@@ -426,7 +430,8 @@ class _AddPostScreenState extends State<AddPostScreen> {
                             _buildTextField(
                               controller: _descriptionController,
                               label: 'Description',
-                              hint: 'Describe the food and any relevant information',
+                              hint:
+                                  'Describe the food and any relevant information',
                               icon: Icons.description,
                               maxLines: 4,
                               maxLength: 500,
@@ -459,7 +464,8 @@ class _AddPostScreenState extends State<AddPostScreen> {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.primary,
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 16),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -530,7 +536,8 @@ class _AddPostScreenState extends State<AddPostScreen> {
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: AppColors.primary, width: 2),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           ),
         ),
       ],
@@ -580,7 +587,8 @@ class _AddPostScreenState extends State<AddPostScreen> {
                       color: Colors.black.withOpacity(0.5),
                       child: const Center(
                         child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       ),
                     ),
@@ -668,7 +676,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
 
   Widget _buildLocationSection() {
     final apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'];
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -701,7 +709,8 @@ class _AddPostScreenState extends State<AddPostScreen> {
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: AppColors.primary, width: 2),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           ),
           debounceTime: 600,
           countries: const ["us", "ca"],
@@ -736,7 +745,8 @@ class _AddPostScreenState extends State<AddPostScreen> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.check_circle, color: AppColors.primary, size: 20),
+                const Icon(Icons.check_circle,
+                    color: AppColors.primary, size: 20),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -803,7 +813,8 @@ class _AddPostScreenState extends State<AddPostScreen> {
                     ],
                   ),
                 ),
-                const Icon(Icons.edit, color: AppColors.onSurfaceVariant, size: 20),
+                const Icon(Icons.edit,
+                    color: AppColors.onSurfaceVariant, size: 20),
               ],
             ),
           ),
@@ -873,7 +884,8 @@ class _AddPostScreenState extends State<AddPostScreen> {
                         fontWeight: FontWeight.w500,
                       ),
                       deleteIconColor: AppColors.primary,
-                      side: BorderSide(color: AppColors.primary.withOpacity(0.3)),
+                      side:
+                          BorderSide(color: AppColors.primary.withOpacity(0.3)),
                     ))
                 .toList(),
           ),
@@ -881,4 +893,4 @@ class _AddPostScreenState extends State<AddPostScreen> {
       ],
     );
   }
-} 
+}

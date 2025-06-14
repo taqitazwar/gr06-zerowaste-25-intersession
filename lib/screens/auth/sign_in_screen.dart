@@ -17,7 +17,7 @@ class _SignInScreenState extends State<SignInScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authService = AuthService();
-  
+
   bool _isLoading = false;
   bool _obscurePassword = true;
 
@@ -47,7 +47,7 @@ class _SignInScreenState extends State<SignInScreen> {
       }
     } on FirebaseAuthException catch (e) {
       String message = 'An error occurred. Please try again.';
-      
+
       switch (e.code) {
         case 'user-not-found':
           message = 'No user found with this email address.';
@@ -72,7 +72,9 @@ class _SignInScreenState extends State<SignInScreen> {
             content: Text(message),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         );
       }
@@ -80,10 +82,14 @@ class _SignInScreenState extends State<SignInScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('An unexpected error occurred. Please try again.'),
+            content: const Text(
+              'An unexpected error occurred. Please try again.',
+            ),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         );
       }
@@ -105,7 +111,7 @@ class _SignInScreenState extends State<SignInScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 60),
-              
+
               // Logo and Title
               Column(
                 children: [
@@ -139,9 +145,9 @@ class _SignInScreenState extends State<SignInScreen> {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 48),
-              
+
               // Welcome text
               Text(
                 'Welcome back!',
@@ -158,9 +164,9 @@ class _SignInScreenState extends State<SignInScreen> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              
+
               const SizedBox(height: 32),
-              
+
               // Sign In Form
               Form(
                 key: _formKey,
@@ -180,15 +186,17 @@ class _SignInScreenState extends State<SignInScreen> {
                         if (value == null || value.isEmpty) {
                           return 'Please enter your email';
                         }
-                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                        if (!RegExp(
+                          r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                        ).hasMatch(value)) {
                           return 'Please enter a valid email address';
                         }
                         return null;
                       },
                     ),
-                    
+
                     const SizedBox(height: 16),
-                    
+
                     // Password field
                     TextFormField(
                       controller: _passwordController,
@@ -201,10 +209,14 @@ class _SignInScreenState extends State<SignInScreen> {
                         prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                            _obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
                           ),
                           onPressed: () {
-                            setState(() => _obscurePassword = !_obscurePassword);
+                            setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            );
                           },
                         ),
                       ),
@@ -218,9 +230,9 @@ class _SignInScreenState extends State<SignInScreen> {
                         return null;
                       },
                     ),
-                    
+
                     const SizedBox(height: 8),
-                    
+
                     // Forgot password
                     Align(
                       alignment: Alignment.centerRight,
@@ -231,9 +243,9 @@ class _SignInScreenState extends State<SignInScreen> {
                         child: const Text('Forgot password?'),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     // Sign In Button
                     SizedBox(
                       width: double.infinity,
@@ -257,9 +269,9 @@ class _SignInScreenState extends State<SignInScreen> {
                   ],
                 ),
               ),
-              
+
               const SizedBox(height: 32),
-              
+
               // Divider
               Row(
                 children: [
@@ -276,16 +288,38 @@ class _SignInScreenState extends State<SignInScreen> {
                   const Expanded(child: Divider()),
                 ],
               ),
-              
+
               const SizedBox(height: 32),
-              
+
+              // Google Sign In Button
+              OutlinedButton.icon(
+                onPressed: _isLoading ? null : _signInWithGoogle,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  side: BorderSide(color: AppColors.outline),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: Image.network(
+                  'https://www.google.com/favicon.ico',
+                  height: 24,
+                  width: 24,
+                ),
+                label: const Text('Continue with Google'),
+              ),
+
+              const SizedBox(height: 32),
+
               // Sign Up Link
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
                     "Don't have an account? ",
-                    style: Theme.of(context).textTheme.bodyMedium,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.onSurfaceVariant,
+                    ),
                   ),
                   TextButton(
                     onPressed: () {
@@ -300,7 +334,7 @@ class _SignInScreenState extends State<SignInScreen> {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 40),
             ],
           ),
@@ -308,4 +342,81 @@ class _SignInScreenState extends State<SignInScreen> {
       ),
     );
   }
-} 
+
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final credential = await _authService.signInWithGoogle();
+
+      if (credential != null && mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      String message = 'An error occurred. Please try again.';
+
+      switch (e.code) {
+        case 'account-exists-with-different-credential':
+          message =
+              'An account already exists with the same email address but different sign-in credentials.';
+          break;
+        case 'invalid-credential':
+          message = 'The credential received is malformed or has expired.';
+          break;
+        case 'operation-not-allowed':
+          message = 'Google sign in is not enabled.';
+          break;
+        case 'user-disabled':
+          message = 'This user has been disabled.';
+          break;
+        case 'user-not-found':
+          message = 'No user found with this email.';
+          break;
+        case 'wrong-password':
+          message = 'Wrong password provided.';
+          break;
+        case 'invalid-verification-code':
+          message = 'The verification code is invalid.';
+          break;
+        case 'invalid-verification-id':
+          message = 'The verification ID is invalid.';
+          break;
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'An unexpected error occurred. Please try again.',
+            ),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+}

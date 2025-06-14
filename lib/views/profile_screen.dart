@@ -18,7 +18,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final _displayNameController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
-  
+
   UserModel? _currentProfile;
   bool _isLoading = false;
   bool _isUploading = false;
@@ -27,7 +27,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _currentProfile = widget.userProfile;
-    _displayNameController.text = _currentProfile!.displayName;
+    _displayNameController.text = _currentProfile!.name;
   }
 
   @override
@@ -62,7 +62,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               if (_currentProfile?.profileImageUrl != null)
                 ListTile(
                   leading: const Icon(Icons.delete, color: Colors.red),
-                  title: const Text('Remove Photo', style: TextStyle(color: Colors.red)),
+                  title: const Text('Remove Photo',
+                      style: TextStyle(color: Colors.red)),
                   onTap: () {
                     Navigator.pop(context);
                     _removeProfilePicture();
@@ -102,22 +103,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       // Delete old profile picture if exists
       if (_currentProfile?.profileImageUrl != null) {
-        await UserController.deleteProfilePicture(_currentProfile!.profileImageUrl!);
+        await UserController.deleteProfilePicture(
+            _currentProfile!.profileImageUrl!);
       }
 
       // Upload new profile picture
       final downloadUrl = await UserController.uploadProfilePicture(
-        userId: _currentProfile!.id,
+        userId: _currentProfile!.uid,
         imageFile: imageFile,
       );
 
       // Refresh user profile
-      final updatedProfile = await UserController.getUserProfile(_currentProfile!.id);
+      final updatedProfile =
+          await UserController.getUserProfile(_currentProfile!.uid);
       if (updatedProfile != null) {
         setState(() {
           _currentProfile = updatedProfile;
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Profile picture updated successfully!'),
@@ -143,21 +146,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       // Delete from storage
-      await UserController.deleteProfilePicture(_currentProfile!.profileImageUrl!);
-      
+      await UserController.deleteProfilePicture(
+          _currentProfile!.profileImageUrl!);
+
       // Update profile to remove image URL
       await UserController.updateUserProfile(
-        userId: _currentProfile!.id,
+        userId: _currentProfile!.uid,
         removeProfileImage: true,
       );
 
       // Refresh user profile
-      final updatedProfile = await UserController.getUserProfile(_currentProfile!.id);
+      final updatedProfile =
+          await UserController.getUserProfile(_currentProfile!.uid);
       if (updatedProfile != null) {
         setState(() {
           _currentProfile = updatedProfile;
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Profile picture removed successfully!'),
@@ -183,17 +188,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       await UserController.updateUserProfile(
-        userId: _currentProfile!.id,
+        userId: _currentProfile!.uid,
         displayName: _displayNameController.text.trim(),
       );
 
       // Refresh user profile
-      final updatedProfile = await UserController.getUserProfile(_currentProfile!.id);
+      final updatedProfile =
+          await UserController.getUserProfile(_currentProfile!.uid);
       if (updatedProfile != null) {
         setState(() {
           _currentProfile = updatedProfile;
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Display name updated successfully!'),
@@ -303,12 +309,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     ),
                                   );
                                 },
-                                loadingBuilder: (context, child, loadingProgress) {
+                                loadingBuilder:
+                                    (context, child, loadingProgress) {
                                   if (loadingProgress == null) return child;
                                   return Container(
                                     color: Colors.green[50],
                                     child: const Center(
-                                      child: CircularProgressIndicator(color: Colors.green),
+                                      child: CircularProgressIndicator(
+                                          color: Colors.green),
                                     ),
                                   );
                                 },
@@ -334,8 +342,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   child: IconButton(
                     onPressed: _isUploading ? null : _pickImage,
-                    icon: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
-                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                    icon: const Icon(Icons.camera_alt,
+                        color: Colors.white, size: 20),
+                    constraints:
+                        const BoxConstraints(minWidth: 36, minHeight: 36),
                     padding: EdgeInsets.zero,
                   ),
                 ),
@@ -344,7 +354,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            _currentProfile?.displayName ?? 'User',
+            _currentProfile?.name ?? 'User',
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -433,12 +443,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         width: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
                     : const Text(
                         'Update Name',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w600),
                       ),
               ),
             ),
@@ -479,18 +491,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildStatItem(
-                'Posts',
-                _currentProfile!.totalPosts.toString(),
-                Colors.blue,
-                Icons.post_add,
-              ),
-              _buildStatItem(
-                'Claims',
-                _currentProfile!.totalClaims.toString(),
-                Colors.orange,
-                Icons.check_circle,
-              ),
+              // _buildStatItem(
+              //   'Posts',
+              //   _currentProfile!.totalPosts.toString(),
+              //   Colors.blue,
+              //   Icons.post_add,
+              // ),
+              // _buildStatItem(
+              //   'Claims',
+              //   _currentProfile!.totalClaims.toString(),
+              //   Colors.orange,
+              //   Icons.check_circle,
+              // ),
               _buildStatItem(
                 'Rating',
                 _currentProfile!.rating.toStringAsFixed(1),
@@ -512,7 +524,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatItem(String label, String value, Color color, IconData icon) {
+  Widget _buildStatItem(
+      String label, String value, Color color, IconData icon) {
     return Column(
       children: [
         Container(
@@ -546,4 +559,4 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _formatDate(DateTime date) {
     return '${date.month}/${date.day}/${date.year}';
   }
-} 
+}

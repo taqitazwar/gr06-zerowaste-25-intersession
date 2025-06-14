@@ -103,7 +103,7 @@ class UserController {
 
     // First, try to get existing profile
     UserModel? userProfile = await getUserProfile(currentUser.uid);
-    
+
     // If profile doesn't exist, create it
     if (userProfile == null) {
       userProfile = await createUserProfile(
@@ -170,10 +170,10 @@ class UserController {
       // Upload to Firebase Storage
       final ref = _storage.ref().child('profile_pictures/$fileName');
       final uploadTask = ref.putFile(imageFile);
-      
+
       final snapshot = await uploadTask;
       final downloadUrl = await snapshot.ref.getDownloadURL();
-      
+
       // Update user profile with new image URL
       await updateUserProfile(
         uid: uid,

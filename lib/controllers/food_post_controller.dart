@@ -6,6 +6,57 @@ import 'dart:math';
 import '../models/food_post_model.dart';
 import '../models/user_model.dart';
 import 'user_controller.dart';
+import 'dart:isolate';
+import 'package:flutter/foundation.dart';
+
+// Data class for nearby posts computation
+class NearbyPostsData {
+  final List<FoodPostModel> posts;
+  final double latitude;
+  final double longitude;
+  final double radiusInKm;
+
+  NearbyPostsData({
+    required this.posts,
+    required this.latitude,
+    required this.longitude,
+    required this.radiusInKm,
+  });
+}
+
+// Helper function for filtering and sorting nearby posts
+List<FoodPostModel> _filterAndSortNearbyPosts(NearbyPostsData data) {
+  final filteredPosts = data.posts.where((post) {
+    final distance = Geolocator.distanceBetween(
+          data.latitude,
+          data.longitude,
+          post.pickupLocation.latitude,
+          post.pickupLocation.longitude,
+        ) /
+        1000; // Convert to km
+
+    return distance <= data.radiusInKm;
+  }).toList();
+
+  // Sort by distance
+  filteredPosts.sort((a, b) {
+    final distanceA = Geolocator.distanceBetween(
+      data.latitude,
+      data.longitude,
+      a.pickupLocation.latitude,
+      a.pickupLocation.longitude,
+    );
+    final distanceB = Geolocator.distanceBetween(
+      data.latitude,
+      data.longitude,
+      b.pickupLocation.latitude,
+      b.pickupLocation.longitude,
+    );
+    return distanceA.compareTo(distanceB);
+  });
+
+  return filteredPosts;
+}
 
 class FoodPostController {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -28,7 +79,7 @@ class FoodPostController {
 
       // Create the post with image URLs
       final postWithImages = foodPost.copyWith(imageUrls: imageUrls);
-      
+
       // Save to Firestore
       final docRef = await _firestore
           .collection(_postsCollection)
@@ -51,14 +102,15 @@ class FoodPostController {
   }
 
   // Upload image to Firebase Storage
-  static Future<String> _uploadImage(File imageFile, String userId, int index) async {
+  static Future<String> _uploadImage(
+      File imageFile, String userId, int index) async {
     try {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final fileName = '${userId}_${timestamp}_$index.jpg';
-      
+
       final ref = _storage.ref().child('$_imageFolder/$fileName');
       final uploadTask = ref.putFile(imageFile);
-      
+
       final snapshot = await uploadTask;
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
@@ -80,61 +132,43 @@ class FoodPostController {
       final query = await _firestore
           .collection(_postsCollection)
           .where('status', isEqualTo: FoodPostStatus.available.name)
-          .where('expiryTime', isGreaterThan: Timestamp.fromDate(DateTime.now()))
-          .where('pickupLocation.latitude', isGreaterThanOrEqualTo: bounds['minLat'])
-          .where('pickupLocation.latitude', isLessThanOrEqualTo: bounds['maxLat'])
+          .where('expiryTime',
+              isGreaterThan: Timestamp.fromDate(DateTime.now()))
+          .where('pickupLocation.latitude',
+              isGreaterThanOrEqualTo: bounds['minLat'])
+          .where('pickupLocation.latitude',
+              isLessThanOrEqualTo: bounds['maxLat'])
           .orderBy('pickupLocation.latitude')
           .orderBy('createdAt', descending: true)
           .limit(limit)
           .get();
 
-      List<FoodPostModel> posts = [];
-      for (var doc in query.docs) {
-        final post = FoodPostModel.fromFirestore(doc);
-        
-        // Calculate exact distance and filter by radius
-        final distance = Geolocator.distanceBetween(
-          latitude,
-          longitude,
-          post.pickupLocation.latitude,
-          post.pickupLocation.longitude,
-        ) / 1000; // Convert to km
+      final posts =
+          query.docs.map((doc) => FoodPostModel.fromFirestore(doc)).toList();
 
-        if (distance <= radiusInKm) {
-          posts.add(post);
-        }
-      }
-
-      // Sort by distance
-      posts.sort((a, b) {
-        final distanceA = Geolocator.distanceBetween(
-          latitude,
-          longitude,
-          a.pickupLocation.latitude,
-          a.pickupLocation.longitude,
-        );
-        final distanceB = Geolocator.distanceBetween(
-          latitude,
-          longitude,
-          b.pickupLocation.latitude,
-          b.pickupLocation.longitude,
-        );
-        return distanceA.compareTo(distanceB);
-      });
-
-      return posts;
+      // Use compute to filter and sort posts in a separate isolate
+      return await compute(
+        _filterAndSortNearbyPosts,
+        NearbyPostsData(
+          posts: posts,
+          latitude: latitude,
+          longitude: longitude,
+          radiusInKm: radiusInKm,
+        ),
+      );
     } catch (e) {
       throw Exception('Failed to get nearby food posts: $e');
     }
   }
 
   // Calculate bounding box for location search
-  static Map<String, double> _calculateBounds(double lat, double lng, double radiusKm) {
+  static Map<String, double> _calculateBounds(
+      double lat, double lng, double radiusKm) {
     const double earthRadiusKm = 6371.0;
-    
+
     final double latDelta = (radiusKm / earthRadiusKm) * (180 / pi);
-    final double lngDelta = (radiusKm / earthRadiusKm) * (180 / pi) / 
-        cos(pi / 180 * lat);
+    final double lngDelta =
+        (radiusKm / earthRadiusKm) * (180 / pi) / cos(pi / 180 * lat);
 
     return {
       'minLat': lat - latDelta,
@@ -162,10 +196,8 @@ class FoodPostController {
   // Get food post by ID
   static Future<FoodPostModel?> getFoodPost(String postId) async {
     try {
-      final doc = await _firestore
-          .collection(_postsCollection)
-          .doc(postId)
-          .get();
+      final doc =
+          await _firestore.collection(_postsCollection).doc(postId).get();
 
       if (doc.exists) {
         return FoodPostModel.fromFirestore(doc);
@@ -191,15 +223,12 @@ class FoodPostController {
       if (status == FoodPostStatus.claimed && claimedBy != null) {
         updates['claimedBy'] = claimedBy;
         updates['claimedAt'] = Timestamp.fromDate(DateTime.now());
-        
+
         // Increment claimer's claim count
         await UserController.incrementUserStats(claimedBy, isClaim: true);
       }
 
-      await _firestore
-          .collection(_postsCollection)
-          .doc(postId)
-          .update(updates);
+      await _firestore.collection(_postsCollection).doc(postId).update(updates);
     } catch (e) {
       throw Exception('Failed to update food post status: $e');
     }
@@ -222,10 +251,7 @@ class FoodPostController {
       }
 
       // Delete post document
-      await _firestore
-          .collection(_postsCollection)
-          .doc(postId)
-          .delete();
+      await _firestore.collection(_postsCollection).doc(postId).delete();
     } catch (e) {
       throw Exception('Failed to delete food post: $e');
     }
@@ -243,7 +269,8 @@ class FoodPostController {
       final firestoreQuery = await _firestore
           .collection(_postsCollection)
           .where('status', isEqualTo: FoodPostStatus.available.name)
-          .where('expiryTime', isGreaterThan: Timestamp.fromDate(DateTime.now()))
+          .where('expiryTime',
+              isGreaterThan: Timestamp.fromDate(DateTime.now()))
           .orderBy('expiryTime')
           .orderBy('createdAt', descending: true)
           .limit(100)
@@ -258,22 +285,22 @@ class FoodPostController {
       posts = posts.where((post) {
         final title = post.title.toLowerCase();
         final description = post.description.toLowerCase();
-        
-        return searchTerms.any((term) => 
-          title.contains(term) || description.contains(term)
-        );
+
+        return searchTerms
+            .any((term) => title.contains(term) || description.contains(term));
       }).toList();
 
       // Filter by location if provided
       if (latitude != null && longitude != null) {
         posts = posts.where((post) {
           final distance = Geolocator.distanceBetween(
-            latitude,
-            longitude,
-            post.pickupLocation.latitude,
-            post.pickupLocation.longitude,
-          ) / 1000; // Convert to km
-          
+                latitude,
+                longitude,
+                post.pickupLocation.latitude,
+                post.pickupLocation.longitude,
+              ) /
+              1000; // Convert to km
+
           return distance <= radiusInKm;
         }).toList();
 
@@ -326,27 +353,28 @@ class FoodPostController {
       final query = await _firestore
           .collection(_postsCollection)
           .where('status', isEqualTo: FoodPostStatus.available.name)
-          .where('expiryTime', isGreaterThan: Timestamp.fromDate(DateTime.now()))
+          .where('expiryTime',
+              isGreaterThan: Timestamp.fromDate(DateTime.now()))
           .where('dietaryTags', arrayContainsAny: tagNames)
           .orderBy('expiryTime')
           .orderBy('createdAt', descending: true)
           .limit(100)
           .get();
 
-      List<FoodPostModel> posts = query.docs
-          .map((doc) => FoodPostModel.fromFirestore(doc))
-          .toList();
+      List<FoodPostModel> posts =
+          query.docs.map((doc) => FoodPostModel.fromFirestore(doc)).toList();
 
       // Filter by location if provided
       if (latitude != null && longitude != null) {
         posts = posts.where((post) {
           final distance = Geolocator.distanceBetween(
-            latitude,
-            longitude,
-            post.pickupLocation.latitude,
-            post.pickupLocation.longitude,
-          ) / 1000; // Convert to km
-          
+                latitude,
+                longitude,
+                post.pickupLocation.latitude,
+                post.pickupLocation.longitude,
+              ) /
+              1000; // Convert to km
+
           return distance <= radiusInKm;
         }).toList();
 
@@ -393,13 +421,12 @@ class FoodPostController {
       if (dietaryTags != null) {
         updates['dietaryTags'] = dietaryTags.map((tag) => tag.name).toList();
       }
-      if (expiryTime != null) updates['expiryTime'] = Timestamp.fromDate(expiryTime);
-      if (pickupInstructions != null) updates['pickupInstructions'] = pickupInstructions;
+      if (expiryTime != null)
+        updates['expiryTime'] = Timestamp.fromDate(expiryTime);
+      if (pickupInstructions != null)
+        updates['pickupInstructions'] = pickupInstructions;
 
-      await _firestore
-          .collection(_postsCollection)
-          .doc(postId)
-          .update(updates);
+      await _firestore.collection(_postsCollection).doc(postId).update(updates);
     } catch (e) {
       throw Exception('Failed to update food post: $e');
     }
@@ -419,4 +446,4 @@ class FoodPostController {
       throw Exception('Failed to get claimed food posts: $e');
     }
   }
-} 
+}
