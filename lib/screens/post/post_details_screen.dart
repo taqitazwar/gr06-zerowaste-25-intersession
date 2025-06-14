@@ -2,16 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme.dart';
 import '../../models/post_model.dart';
+import '../../controllers/report_controller.dart';
+import '../../controllers/user_controller.dart';
 import 'edit_post_screen.dart';
+import 'report_dialog.dart';
+import 'report_list_dialog.dart';
 
 class PostDetailsScreen extends StatelessWidget {
   final PostModel post;
-  final bool isOwnPost;
 
   const PostDetailsScreen({
     super.key,
     required this.post,
-    this.isOwnPost = false,
   });
 
   @override
@@ -23,445 +25,225 @@ class PostDetailsScreen extends StatelessWidget {
     final isAvailable = post.status == PostStatus.available && !isExpired;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        slivers: [
-          // App Bar with Image
-          SliverAppBar(
-            expandedHeight: 300,
-            pinned: true,
-            backgroundColor: AppColors.primary,
-            flexibleSpace: FlexibleSpaceBar(
-              background: post.imageUrl.isNotEmpty
-                  ? Image.network(
-                      post.imageUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: Colors.grey[200],
-                          child: const Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.image_not_supported_outlined,
-                                  color: Colors.grey,
-                                  size: 64,
-                                ),
-                                SizedBox(height: 16),
-                                Text(
-                                  'Image not available',
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ],
-                            ),
+      appBar: AppBar(
+        title: const Text('Post Details'),
+        actions: [
+          StreamBuilder<bool>(
+            stream: Stream.fromFuture(_checkIfOwnPost()),
+            builder: (context, snapshot) {
+              final isOwnPost = snapshot.data ?? false;
+              return Row(
+                children: [
+                  if (isOwnPost)
+                    IconButton(
+                      onPressed: () async {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => EditPostScreen(post: post),
                           ),
                         );
+                        
+                        if (result == true && context.mounted) {
+                          Navigator.pop(context, true); // Return to previous screen
+                        }
                       },
-                    )
-                  : Container(
-                      color: Colors.grey[200],
-                      child: const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.restaurant,
-                              color: Colors.grey,
-                              size: 64,
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              'No photo available',
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
-                        ),
+                      icon: const Icon(Icons.edit),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.black.withOpacity(0.5),
                       ),
                     ),
-            ),
-            actions: [
-              if (isOwnPost)
-                IconButton(
-                  onPressed: () async {
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => EditPostScreen(post: post),
+                  if (!isOwnPost)
+                    IconButton(
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => ReportDialog(postId: post.postId),
+                        );
+                      },
+                      icon: const Icon(Icons.flag_outlined),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.black.withOpacity(0.5),
                       ),
-                    );
-                    
-                    if (result == true && context.mounted) {
-                      Navigator.pop(context, true); // Return to previous screen
-                    }
-                  },
-                  icon: const Icon(Icons.edit),
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.black.withOpacity(0.5),
-                  ),
-                ),
-            ],
+                    ),
+                ],
+              );
+            },
           ),
-          
-          // Content
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
+        ],
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Post image
+            AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Image.network(
+                post.imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.grey[300],
+                    child: const Center(
+                      child: Icon(
+                        Icons.error_outline,
+                        color: Colors.grey,
+                        size: 48,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Status Badge
+                  // Title and status
                   Row(
                     children: [
+                      Expanded(
+                        child: Text(
+                          post.title,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: _getStatusColor(),
+                          color: _getStatusColor(post.status).withOpacity(0.1),
                           borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: _getStatusColor(post.status)),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _getStatusIcon(),
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              _getStatusText(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
+                        child: Text(
+                          _getStatusText(post.status),
+                          style: TextStyle(
+                            color: _getStatusColor(post.status),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
-                      if (isOwnPost) ...[
-                        const SizedBox(width: 12),
-                        Container(
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Description
+                  Text(
+                    post.description,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Dietary tags
+                  if (post.dietaryTags.isNotEmpty) ...[
+                    const Text(
+                      'Dietary Tags',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: post.dietaryTags.map((tag) {
+                        return Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: AppColors.primary.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(color: AppColors.primary),
                           ),
-                          child: const Text(
-                            'Your Post',
-                            style: TextStyle(
+                          child: Text(
+                            _getDietaryTagDisplayName(tag),
+                            style: const TextStyle(
                               color: AppColors.primary,
                               fontWeight: FontWeight.w600,
                               fontSize: 12,
                             ),
                           ),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                  // Expiry date
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.access_time,
+                        color: AppColors.onSurfaceVariant,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Expires ${DateFormat('MMM d, y').format(post.expiry)}',
+                        style: const TextStyle(
+                          color: AppColors.onSurfaceVariant,
+                          fontSize: 14,
                         ),
-                      ],
+                      ),
                     ],
                   ),
-                  
-                  const SizedBox(height: 20),
-                  
-                  // Title
-                  Text(
-                    post.title,
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.onSurface,
-                      height: 1.2,
-                    ),
-                  ),
-                  
                   const SizedBox(height: 16),
-                  
-                  // Description
-                  Text(
-                    post.description,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[700],
-                      height: 1.5,
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 32),
-                  
-                  // Details Cards
-                  _buildDetailCard(
-                    icon: Icons.location_on,
-                    title: 'Pickup Location',
-                    content: post.address,
-                    color: AppColors.primary,
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  _buildDetailCard(
-                    icon: Icons.access_time,
-                    title: 'Posted',
-                    content: '$formattedDate at $formattedTime',
-                    color: Colors.blue,
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  _buildDetailCard(
-                    icon: Icons.schedule,
-                    title: 'Available Until',
-                    content: formattedExpiry,
-                    color: isExpired ? Colors.red : Colors.orange,
-                    subtitle: isExpired ? 'This food has expired' : 'Expires in ${_getExpiryText()}',
-                  ),
-                  
-                  if (post.dietaryTags.isNotEmpty && !post.dietaryTags.contains(DietaryTag.none)) ...[
-                    const SizedBox(height: 16),
-                    _buildDietaryTagsCard(),
-                  ],
-                  
-                  const SizedBox(height: 32),
-                  
-                  // Action Buttons (only for non-own posts)
-                  if (!isOwnPost && isAvailable) ...[
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          _showClaimDialog(context);
-                        },
-                        icon: const Icon(Icons.check_circle_outline),
-                        label: const Text('Claim This Food'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 2,
-                        ),
+                  // Location
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on,
+                        color: AppColors.onSurfaceVariant,
+                        size: 20,
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          _showContactDialog(context);
-                        },
-                        icon: const Icon(Icons.message_outlined),
-                        label: const Text('Contact Poster'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                          side: const BorderSide(color: AppColors.primary),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          post.address,
+                          style: const TextStyle(
+                            color: AppColors.onSurfaceVariant,
+                            fontSize: 14,
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                  
-                  const SizedBox(height: 40),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetailCard({
-    required IconData icon,
-    required String title,
-    required String content,
-    required Color color,
-    String? subtitle,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  content,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.onSurface,
-                  ),
-                ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: color,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    ],
                   ),
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildDietaryTagsCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.secondary.withOpacity(0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.secondary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.restaurant_menu, color: AppColors.secondary, size: 24),
-              ),
-              const SizedBox(width: 16),
-              const Text(
-                'Dietary Information',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.onSurface,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: post.dietaryTags
-                .where((tag) => tag != DietaryTag.none)
-                .map((tag) => Chip(
-                      label: Text(_getDietaryTagDisplayName(tag)),
-                      backgroundColor: AppColors.secondary.withOpacity(0.1),
-                      labelStyle: const TextStyle(
-                        color: AppColors.secondary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      side: BorderSide(color: AppColors.secondary.withOpacity(0.3)),
-                    ))
-                .toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Color _getStatusColor() {
-    if (post.isExpired) {
+  Color _getStatusColor(PostStatus status) {
+    if (status == PostStatus.expired) {
       return Colors.red;
-    } else if (post.status == PostStatus.available) {
+    } else if (status == PostStatus.available) {
       return AppColors.primary;
-    } else if (post.status == PostStatus.claimed) {
+    } else if (status == PostStatus.claimed) {
       return Colors.orange;
     } else {
       return Colors.grey;
     }
   }
 
-  IconData _getStatusIcon() {
-    if (post.isExpired) {
-      return Icons.timer_off;
-    } else if (post.status == PostStatus.available) {
-      return Icons.check_circle;
-    } else if (post.status == PostStatus.claimed) {
-      return Icons.handshake;
-    } else {
-      return Icons.pause_circle;
-    }
-  }
-
-  String _getStatusText() {
-    if (post.isExpired) {
+  String _getStatusText(PostStatus status) {
+    if (status == PostStatus.expired) {
       return 'Expired';
-    } else if (post.status == PostStatus.available) {
+    } else if (status == PostStatus.available) {
       return 'Available';
-    } else if (post.status == PostStatus.claimed) {
+    } else if (status == PostStatus.claimed) {
       return 'Claimed';
     } else {
       return 'Inactive';
-    }
-  }
-
-  String _getExpiryText() {
-    final expiryDate = post.expiry;
-    final now = DateTime.now();
-    final difference = expiryDate.difference(now);
-    
-    if (difference.isNegative) {
-      return 'Expired';
-    } else if (difference.inDays > 0) {
-      return '${difference.inDays} day${difference.inDays > 1 ? 's' : ''}';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours} hour${difference.inHours > 1 ? 's' : ''}';
-    } else {
-      return '${difference.inMinutes} min${difference.inMinutes > 1 ? 's' : ''}';
     }
   }
 
@@ -490,47 +272,8 @@ class PostDetailsScreen extends StatelessWidget {
     }
   }
 
-  void _showClaimDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Claim Food'),
-        content: const Text('Are you sure you want to claim this food? The poster will be notified and you can arrange pickup.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Claim functionality coming soon!'),
-                  backgroundColor: AppColors.primary,
-                ),
-              );
-            },
-            child: const Text('Claim'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showContactDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Contact Poster'),
-        content: const Text('Messaging functionality will be available soon. For now, you can claim the food to get contact information.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
+  Future<bool> _checkIfOwnPost() async {
+    final currentUser = await UserController.getCurrentUser();
+    return currentUser?.uid == post.postedBy;
   }
 } 

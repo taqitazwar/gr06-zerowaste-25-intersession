@@ -4,8 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme.dart';
 import '../../models/post_model.dart';
+import '../../controllers/report_controller.dart';
 import '../post/add_post_screen.dart';
 import '../post/post_details_screen.dart';
+import '../post/report_list_dialog.dart';
 
 class FoodListingsScreen extends StatefulWidget {
   const FoodListingsScreen({Key? key}) : super(key: key);
@@ -292,6 +294,61 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
                       ),
                     ),
                   ),
+                // Add report indicator
+                StreamBuilder<bool>(
+                  stream: ReportController.hasReports(post.postId),
+                  builder: (context, snapshot) {
+                    final hasReports = snapshot.data ?? false;
+                    if (hasReports) {
+                      return Positioned(
+                        top: 12,
+                        right: 12,
+                        child: GestureDetector(
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => ReportListDialog(postId: post.postId),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.flag,
+                                  color: AppColors.error,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                const Text(
+                                  'Reported',
+                                  style: TextStyle(
+                                    color: AppColors.error,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
               ],
             ),
           
