@@ -12,27 +12,28 @@ class UserController {
 
   // Create user profile when they first sign up
   static Future<UserModel?> createUserProfile({
-    required String userId,
+    required String uid,
     required String email,
-    required String displayName,
+    required String name,
     String? profileImageUrl,
-    LocationData? initialLocation,
+    GeoPoint? location,
+    String fcmToken = '',
   }) async {
     try {
       final newUser = UserModel(
-        id: userId,
+        uid: uid,
+        name: name,
         email: email,
-        displayName: displayName,
         profileImageUrl: profileImageUrl,
-        currentLocation: initialLocation,
+        location: location ?? const GeoPoint(0, 0),
+        fcmToken: fcmToken,
         createdAt: DateTime.now(),
-        lastActive: DateTime.now(),
       );
 
       await _firestore
           .collection(_usersCollection)
-          .doc(userId)
-          .set(newUser.toFirestore());
+          .doc(uid)
+          .set(newUser.toMap());
 
       return newUser;
     } catch (e) {
@@ -42,15 +43,15 @@ class UserController {
   }
 
   // Get user profile
-  static Future<UserModel?> getUserProfile(String userId) async {
+  static Future<UserModel?> getUserProfile(String uid) async {
     try {
       final doc = await _firestore
           .collection(_usersCollection)
-          .doc(userId)
+          .doc(uid)
           .get();
 
       if (doc.exists) {
-        return UserModel.fromFirestore(doc);
+        return UserModel.fromDocument(doc);
       }
       return null;
     } catch (e) {
@@ -61,36 +62,34 @@ class UserController {
 
   // Update user profile
   static Future<void> updateUserProfile({
-    required String userId,
-    String? displayName,
+    required String uid,
+    String? name,
     String? profileImageUrl,
-    LocationData? currentLocation,
+    GeoPoint? location,
     String? fcmToken,
     bool removeProfileImage = false,
   }) async {
     try {
-      final updates = <String, dynamic>{
-        'lastActive': Timestamp.fromDate(DateTime.now()),
-      };
+      final updates = <String, dynamic>{};
 
-      if (displayName != null) updates['displayName'] = displayName;
+      if (name != null) updates['name'] = name;
       if (profileImageUrl != null) updates['profileImageUrl'] = profileImageUrl;
       if (removeProfileImage) updates['profileImageUrl'] = null;
-      if (currentLocation != null) updates['currentLocation'] = currentLocation.toMap();
+      if (location != null) updates['location'] = location;
       if (fcmToken != null) updates['fcmToken'] = fcmToken;
 
-      await _firestore.collection(_usersCollection).doc(userId).update(updates);
+      await _firestore.collection(_usersCollection).doc(uid).update(updates);
     } catch (e) {
       throw Exception('Failed to update user profile: $e');
     }
   }
 
   // Update user's last active time
-  static Future<void> updateLastActive(String userId) async {
+  static Future<void> updateLastActive(String uid) async {
     try {
       await _firestore
           .collection(_usersCollection)
-          .doc(userId)
+          .doc(uid)
           .update({'lastActive': Timestamp.fromDate(DateTime.now())});
     } catch (e) {
       print('Error updating last active: $e');
@@ -108,9 +107,9 @@ class UserController {
     // If profile doesn't exist, create it
     if (userProfile == null) {
       userProfile = await createUserProfile(
-        userId: currentUser.uid,
+        uid: currentUser.uid,
         email: currentUser.email ?? '',
-        displayName: currentUser.displayName ?? 'User',
+        name: currentUser.displayName ?? 'User',
       );
     } else {
       // Update last active time
@@ -121,14 +120,13 @@ class UserController {
   }
 
   // Update user location
-  static Future<bool> updateUserLocation(String userId, LocationData location) async {
+  static Future<bool> updateUserLocation(String uid, GeoPoint location) async {
     try {
       await _firestore
           .collection(_usersCollection)
-          .doc(userId)
+          .doc(uid)
           .update({
-        'currentLocation': location.toMap(),
-        'lastActive': Timestamp.fromDate(DateTime.now()),
+        'location': location,
       });
       return true;
     } catch (e) {
@@ -138,12 +136,10 @@ class UserController {
   }
 
   // Increment user stats
-  static Future<void> incrementUserStats(String userId, {bool isPost = false, bool isClaim = false}) async {
+  static Future<void> incrementUserStats(String uid, {bool isPost = false, bool isClaim = false}) async {
     try {
       final increment = FieldValue.increment(1);
-      Map<String, dynamic> updates = {
-        'lastActive': Timestamp.fromDate(DateTime.now()),
-      };
+      Map<String, dynamic> updates = {};
 
       if (isPost) {
         updates['totalPosts'] = increment;
@@ -154,7 +150,7 @@ class UserController {
 
       await _firestore
           .collection(_usersCollection)
-          .doc(userId)
+          .doc(uid)
           .update(updates);
     } catch (e) {
       print('Error incrementing user stats: $e');
@@ -163,13 +159,13 @@ class UserController {
 
   // Upload profile picture to Firebase Storage
   static Future<String> uploadProfilePicture({
-    required String userId,
+    required String uid,
     required File imageFile,
   }) async {
     try {
       // Create a unique filename
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final fileName = 'profile_$userId$timestamp.jpg';
+      final fileName = 'profile_$uid$timestamp.jpg';
       
       // Upload to Firebase Storage
       final ref = _storage.ref().child('profile_pictures/$fileName');
@@ -180,7 +176,7 @@ class UserController {
       
       // Update user profile with new image URL
       await updateUserProfile(
-        userId: userId,
+        uid: uid,
         profileImageUrl: downloadUrl,
       );
       
@@ -198,6 +194,21 @@ class UserController {
     } catch (e) {
       // Ignore errors when deleting old images
       print('Warning: Could not delete old profile picture: $e');
+    }
+  }
+
+  static Future<UserModel?> getCurrentUser() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return null;
+
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      if (!doc.exists) return null;
+
+      return UserModel.fromDocument(doc);
+    } catch (e) {
+      print('Error getting current user: $e');
+      return null;
     }
   }
 } 
