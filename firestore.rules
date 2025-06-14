@@ -1,0 +1,45 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow users to read and write their own user document
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Allow users to read and write their own posts
+    match /posts/{postId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.postedBy;
+      allow update: if request.auth != null && 
+                   (request.auth.uid == resource.data.postedBy || 
+                    request.auth.uid == resource.data.claimedBy);
+      allow delete: if request.auth != null && request.auth.uid == resource.data.postedBy;
+    }
+
+    // Allow users to read and write their own claims
+    match /claims/{claimId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.claimerId;
+      allow update: if request.auth != null && request.auth.uid == resource.data.claimerId;
+    }
+
+    // Allow users to read and write their own messages
+    match /messages/{chatId} {
+      allow read, write: if request.auth != null && 
+                        (request.auth.uid == resource.data.user1 || 
+                         request.auth.uid == resource.data.user2);
+      allow create: if request.auth != null && 
+                   (request.auth.uid == request.resource.data.user1 || 
+                    request.auth.uid == request.resource.data.user2);
+    }
+
+    // Allow users to create reports and read reports for their own posts
+    match /reports/{reportId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && 
+                   request.auth.uid == request.resource.data.reporterId;
+    }
+  }
+} 

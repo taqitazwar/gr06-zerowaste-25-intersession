@@ -44,7 +44,7 @@ dependencies:
   firebase_analytics: ^11.3.7
 
   # Notifications
-  flutter_local_notifications: ^16.3.2
+  flutter_local_notifications: ^19.2.1
   shared_preferences: ^2.2.2
 
   # Google Maps and Places
