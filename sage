@@ -1,0 +1,62 @@
+[33m95d6a43[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mupdate-all-files[m[33m, [m[1;31morigin/update-all-files[m[33m)[m Made changes to food post controller, create a initial user claim and rating system
+[33m5deeb27[m[33m ([m[1;31morigin/user-rating-system[m[33m, [m[1;32muser-rating-system[m[33m, [m[1;32madd-new-models[m[33m)[m Add user claim and rating system
+[33mcc81e3d[m[33m ([m[1;31morigin/main[m[33m)[m Merge pull request #8 from taqitazwar/feature/interactive-map
+[33md1a3c2e[m[33m ([m[1;31morigin/feature/user-reliability-rating[m[33m, [m[1;31morigin/feature/interactive-map[m[33m)[m fix: update home screen to use MapViewScreen instead of placeholder
+[33m3563611[m fix: restore map view screen file
+[33mf02bb32[m Merge branch 'main' of https://github.com/taqitazwar/gr06-zerowaste-25-intersession
+[33mf1681f6[m Merge pull request #7 from taqitazwar/places-bug-fixes-and-others
+[33ma5f30c6[m Posts routing back fixed
+[33mc476537[m Fxied location input jumping bug
+[33mf496a0b[m ci: full Android distribution workflow with .env generation
+[33mf4fd82f[m feat: CI/CD – add Android distribution workflow
+[33mf2788a6[m chore: ignore Android .cxx build directory
+[33m7d90f09[m Merge pull request #6 from taqitazwar/feature/manage-food-listings
+[33m91cea52[m Functionality to view post details
+[33mbd49740[m Functionality to manage your own food posts
+[33m7f763f1[m Merge pull request #5 from taqitazwar/feature/food-listings-screen
+[33me41377b[m Added functionality to see your own list of posts under profile screen
+[33m2de0642[m Added food listings screen and updated post model to have title, plus some UI improvements
+[33mb9063da[m Merge pull request #4 from clean-feature-flutter-setup for a fresh start
+[33m6bb9a01[m Merge main branch, keeping our Flutter implementation
+[33m2f7305f[m Add UI screens for application
+[33m66bfbe1[m Add service classes for API and authentication
+[33ma8cdd39[m Add data models for application
+[33m71e47d4[m Add core application files and Firebase configuration
+[33m64236d3[m Add platform-specific files (Android, iOS, web) and Firebase configuration
+[33me97fd08[m Add basic Flutter configuration files
+[33m0040eeb[m Merge pull request #3 from taqitazwar/feature/interactive-map
+[33ma7e47d3[m Implement interactive map feature with Google Maps integration
+[33m7eb1f15[m Merge pull request #2 from taqitazwar/initial-structure-models
+[33m6dfa267[m Merge pull request #2 from taqitazwar/initial-structure-models
+[33m5d33172[m Added food creation screen and logic, google places api
+[33mbda53b0[m Added food creation screen and logic, google places api
+[33ma83d471[m Updated auth screen design
+[33m749e69e[m Updated auth screen design
+[33m98d898b[m Added views and controller for account creation and profile editing
+[33mbb6b367[m Added views and controller for account creation and profile editing
+[33m461ab91[m Added profile pic to user
+[33madc7608[m Added profile pic to user
+[33mafdea40[m Updated main dart to accomodate for the new auth flow
+[33maf5c957[m Updated main dart to accomodate for the new auth flow
+[33mc8c858d[m Added initial models: user and food post
+[33m1de020c[m Added initial models: user and food post
+[33m8a4be49[m Removed linux windows and macos directories
+[33me906066[m Removed linux windows and macos directories
+[33m6a786f9[m Cleaned main file and established firebase connection properly
+[33m25993dc[m Cleaned main file and established firebase connection properly
+[33m2cafe7f[m Updated dependencies
+[33m1f6f0f2[m Updated dependencies
+[33m3b2f3ee[m[33m ([m[1;31morigin/feat/logging[m[33m)[m Delete .env
+[33m56cfd0f[m Merge pull request #1 from taqitazwar/feature/firebase-auth-google-signin
+[33m8b8abed[m Merge pull request #1 from taqitazwar/feature/firebase-auth-google-signin
+[33m6c47552[m feat: implement Firebase auth with email/password and Google sign-in
+[33mfaf5257[m feat: implement Firebase auth with email/password and Google sign-in
+[33me7cad6c[m chore: add .env to gitignore to keep secrets safe
+[33m9194e8f[m chore: add .env to gitignore to keep secrets safe
+[33m112a4c4[m feat: implement full Firebase auth with Google sign-in and email/password; update configs
+[33m51e7a86[m feat: implement full Firebase auth with Google sign-in and email/password; update configs
+[33mf56c546[m Resolve merge conflicts in .gitignore and README.md
+[33mb89914c[m Resolve merge conflicts in .gitignore and README.md
+[33m0da0315[m Initial commit: Firebase setup with auth and Google sign-in
+[33m9c70bc4[m Initial commit
+[33m872396b[m Initial commit
