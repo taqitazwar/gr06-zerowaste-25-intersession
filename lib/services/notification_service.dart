@@ -1,140 +1,217 @@
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class NotificationService {
-  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _localNotifications =
-      FlutterLocalNotificationsPlugin();
-  final SharedPreferences _prefs;
+  static final NotificationService _instance = NotificationService._internal();
+  factory NotificationService() => _instance;
+
+  late final SharedPreferences _prefs;
+  final MethodChannel _channel = const MethodChannel(
+    'com.example.zerowaste_app/notifications',
+  );
+  bool _isInitialized = false;
 
   // Notification settings keys
   static const String _foodClaimedKey = 'notify_food_claimed';
   static const String _newMessageKey = 'notify_new_message';
   static const String _nearbyPostKey = 'notify_nearby_post';
 
-  NotificationService(this._prefs) {
-    _initializeNotifications();
+  NotificationService._internal();
+
+  Future<void> initialize(SharedPreferences prefs) async {
+    if (_isInitialized) {
+      debugPrint('NotificationService already initialized');
+      return;
+    }
+
+    try {
+      _prefs = prefs;
+
+      // Set default values if they don't exist
+      if (!_prefs.containsKey(_foodClaimedKey)) {
+        await _prefs.setBool(_foodClaimedKey, true);
+      }
+      if (!_prefs.containsKey(_newMessageKey)) {
+        await _prefs.setBool(_newMessageKey, true);
+      }
+      if (!_prefs.containsKey(_nearbyPostKey)) {
+        await _prefs.setBool(_nearbyPostKey, true);
+      }
+
+      // Initialize platform channel
+      await _channel.invokeMethod('initialize');
+      _isInitialized = true;
+      debugPrint('NotificationService initialized successfully');
+    } catch (e) {
+      debugPrint('Failed to initialize notifications: $e');
+      // Don't throw the error, just log it and continue
+      _isInitialized = false;
+    }
   }
 
-  Future<void> _initializeNotifications() async {
-    // Request permission for iOS
-    await _firebaseMessaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-
-    // Initialize local notifications
-    const initializationSettingsAndroid = AndroidInitializationSettings(
-      '@mipmap/ic_launcher',
-    );
-    const initializationSettingsIOS = DarwinInitializationSettings();
-    const initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsIOS,
-    );
-
-    await _localNotifications.initialize(initializationSettings);
-
-    // Handle background messages
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-    // Handle foreground messages
-    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
-
-    // Handle notification taps
-    FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
+  // Notification settings getters with null safety
+  bool get notifyFoodClaimed {
+    if (!_isInitialized) {
+      debugPrint(
+        'NotificationService not initialized, returning default value for food claimed',
+      );
+      return true;
+    }
+    return _prefs.getBool(_foodClaimedKey) ?? true;
   }
 
-  Future<String?> getToken() async {
-    return await _firebaseMessaging.getToken();
+  bool get notifyNewMessage {
+    if (!_isInitialized) {
+      debugPrint(
+        'NotificationService not initialized, returning default value for new message',
+      );
+      return true;
+    }
+    return _prefs.getBool(_newMessageKey) ?? true;
   }
 
-  Future<void> subscribeToTopic(String topic) async {
-    await _firebaseMessaging.subscribeToTopic(topic);
+  bool get notifyNearbyPost {
+    if (!_isInitialized) {
+      debugPrint(
+        'NotificationService not initialized, returning default value for nearby post',
+      );
+      return true;
+    }
+    return _prefs.getBool(_nearbyPostKey) ?? true;
   }
 
-  Future<void> unsubscribeFromTopic(String topic) async {
-    await _firebaseMessaging.unsubscribeFromTopic(topic);
-  }
-
-  // Notification settings getters and setters
-  bool get notifyFoodClaimed => _prefs.getBool(_foodClaimedKey) ?? true;
-  bool get notifyNewMessage => _prefs.getBool(_newMessageKey) ?? true;
-  bool get notifyNearbyPost => _prefs.getBool(_nearbyPostKey) ?? true;
-
+  // Notification settings setters with error handling
   Future<void> setNotifyFoodClaimed(bool value) async {
-    await _prefs.setBool(_foodClaimedKey, value);
+    if (!_isInitialized) {
+      debugPrint(
+        'NotificationService not initialized, cannot set food claimed notification',
+      );
+      return;
+    }
+    try {
+      await _prefs.setBool(_foodClaimedKey, value);
+      debugPrint('Food claimed notification setting updated: $value');
+    } catch (e) {
+      debugPrint('Failed to set food claimed notification: $e');
+    }
   }
 
   Future<void> setNotifyNewMessage(bool value) async {
-    await _prefs.setBool(_newMessageKey, value);
+    if (!_isInitialized) {
+      debugPrint(
+        'NotificationService not initialized, cannot set new message notification',
+      );
+      return;
+    }
+    try {
+      await _prefs.setBool(_newMessageKey, value);
+      debugPrint('New message notification setting updated: $value');
+    } catch (e) {
+      debugPrint('Failed to set new message notification: $e');
+    }
   }
 
   Future<void> setNotifyNearbyPost(bool value) async {
-    await _prefs.setBool(_nearbyPostKey, value);
-  }
-
-  Future<void> _handleForegroundMessage(RemoteMessage message) async {
-    if (!_shouldShowNotification(message.data['type'])) return;
-
-    final notification = message.notification;
-    final android = message.notification?.android;
-
-    if (notification != null && android != null) {
-      await _localNotifications.show(
-        notification.hashCode,
-        notification.title,
-        notification.body,
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            'high_importance_channel',
-            'High Importance Notifications',
-            importance: Importance.max,
-            priority: Priority.high,
-          ),
-          iOS: const DarwinNotificationDetails(),
-        ),
+    if (!_isInitialized) {
+      debugPrint(
+        'NotificationService not initialized, cannot set nearby post notification',
       );
+      return;
+    }
+    try {
+      await _prefs.setBool(_nearbyPostKey, value);
+      debugPrint('Nearby post notification setting updated: $value');
+    } catch (e) {
+      debugPrint('Failed to set nearby post notification: $e');
     }
   }
 
-  void _handleNotificationTap(RemoteMessage message) {
-    // Handle notification tap based on the message type
-    final type = message.data['type'];
-    final id = message.data['id'];
+  Future<void> showNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    if (!_isInitialized) {
+      debugPrint(
+        'NotificationService not initialized, skipping notification: $title',
+      );
+      return;
+    }
 
-    switch (type) {
-      case 'food_claimed':
-        // Navigate to food post details
-        break;
-      case 'new_message':
-        // Navigate to chat
-        break;
-      case 'nearby_post':
-        // Navigate to nearby posts
-        break;
+    try {
+      await _channel.invokeMethod('showNotification', {
+        'title': title,
+        'body': body,
+        'payload': payload,
+      });
+      debugPrint('Notification shown successfully: $title');
+    } catch (e) {
+      debugPrint('Failed to show notification: $e');
     }
   }
 
-  bool _shouldShowNotification(String? type) {
-    switch (type) {
-      case 'food_claimed':
-        return notifyFoodClaimed;
-      case 'new_message':
-        return notifyNewMessage;
-      case 'nearby_post':
-        return notifyNearbyPost;
-      default:
-        return true;
+  Future<void> showFoodExpiryNotification({
+    required String foodName,
+    required DateTime expiryDate,
+  }) async {
+    if (!_isInitialized || !notifyFoodClaimed) {
+      debugPrint(
+        'Skipping food expiry notification: Service not initialized or notifications disabled',
+      );
+      return;
+    }
+
+    try {
+      final daysUntilExpiry = expiryDate.difference(DateTime.now()).inDays;
+      final title = 'Food Expiring Soon';
+      final body = '$foodName will expire in $daysUntilExpiry days';
+
+      await showNotification(title: title, body: body, payload: 'food_expiry');
+    } catch (e) {
+      debugPrint('Failed to show food expiry notification: $e');
     }
   }
-}
 
-// This needs to be a top-level function
-@pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Handle background messages here
-  print('Handling a background message: ${message.messageId}');
+  Future<void> showDonationNotification({
+    required String foodName,
+    required String location,
+  }) async {
+    if (!_isInitialized || !notifyNearbyPost) {
+      debugPrint(
+        'Skipping donation notification: Service not initialized or notifications disabled',
+      );
+      return;
+    }
+
+    try {
+      final title = 'New Food Donation';
+      final body = '$foodName is available near $location';
+
+      await showNotification(title: title, body: body, payload: 'new_donation');
+    } catch (e) {
+      debugPrint('Failed to show donation notification: $e');
+    }
+  }
+
+  Future<void> showMessageNotification({
+    required String senderName,
+    required String message,
+  }) async {
+    if (!_isInitialized || !notifyNewMessage) {
+      debugPrint(
+        'Skipping message notification: Service not initialized or notifications disabled',
+      );
+      return;
+    }
+
+    try {
+      final title = 'New Message from $senderName';
+      final body = message;
+
+      await showNotification(title: title, body: body, payload: 'new_message');
+    } catch (e) {
+      debugPrint('Failed to show message notification: $e');
+    }
+  }
 }

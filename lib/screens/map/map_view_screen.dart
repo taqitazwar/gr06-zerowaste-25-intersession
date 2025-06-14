@@ -7,6 +7,42 @@ import '../../core/theme.dart';
 import '../post/post_details_screen.dart';
 import 'dart:ui' as ui;
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
+
+class MarkerIconData {
+  final IconData icon;
+  final double size;
+  final Color color;
+
+  MarkerIconData({
+    required this.icon,
+    required this.size,
+    required this.color,
+  });
+}
+
+Future<Uint8List> _createMarkerIconBytes(MarkerIconData data) async {
+  final pictureRecorder = ui.PictureRecorder();
+  final canvas = Canvas(pictureRecorder);
+  final textPainter = TextPainter(textDirection: TextDirection.ltr);
+
+  textPainter.text = TextSpan(
+    text: String.fromCharCode(data.icon.codePoint),
+    style: TextStyle(
+      fontSize: data.size,
+      fontFamily: data.icon.fontFamily,
+      color: data.color,
+    ),
+  );
+
+  textPainter.layout();
+  textPainter.paint(canvas, Offset.zero);
+
+  final picture = pictureRecorder.endRecording();
+  final img = await picture.toImage(data.size.toInt(), data.size.toInt());
+  final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
+  return byteData!.buffer.asUint8List();
+}
 
 class MapViewScreen extends StatefulWidget {
   const MapViewScreen({super.key});
@@ -160,38 +196,15 @@ class _MapViewScreenState extends State<MapViewScreen> {
   }
 
   Future<void> _createCustomMarker() async {
-    final Uint8List markerIcon = await _getBytesFromIcon(
-      Icons.fastfood,
-      96,
-      AppColors.primary,
-    );
-    _foodMarker = BitmapDescriptor.fromBytes(markerIcon);
-  }
-
-  Future<Uint8List> _getBytesFromIcon(
-    IconData icon,
-    double size,
-    Color color,
-  ) async {
-    final ui.PictureRecorder recorder = ui.PictureRecorder();
-    final Canvas canvas = Canvas(recorder);
-    final TextPainter tp = TextPainter(textDirection: TextDirection.ltr);
-    tp.text = TextSpan(
-      text: String.fromCharCode(icon.codePoint),
-      style: TextStyle(
-        fontSize: size,
-        fontFamily: icon.fontFamily,
-        color: color,
+    final markerIcon = await compute(
+      _createMarkerIconBytes,
+      MarkerIconData(
+        icon: Icons.fastfood,
+        size: 96,
+        color: AppColors.primary,
       ),
     );
-    tp.layout();
-    tp.paint(canvas, Offset.zero);
-    final ui.Image img = await recorder.endRecording().toImage(
-      tp.width.toInt(),
-      tp.height.toInt(),
-    );
-    final ByteData? data = await img.toByteData(format: ui.ImageByteFormat.png);
-    return data!.buffer.asUint8List();
+    _foodMarker = BitmapDescriptor.fromBytes(markerIcon);
   }
 
   @override

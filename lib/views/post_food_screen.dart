@@ -9,9 +9,12 @@ import 'dart:io';
 import '../models/food_post_model.dart';
 import '../models/user_model.dart';
 import '../controllers/food_post_controller.dart';
+import '../models/location_data.dart';
+import 'dart:async';
 
 // Google Places API configuration
-String get kGoogleApiKey => 'AIzaSyBv6Sg--2_TK2y22950yy6rHMxXlsyOGC4'; // Using Firebase API key temporarily
+String get kGoogleApiKey =>
+    'AIzaSyBv6Sg--2_TK2y22950yy6rHMxXlsyOGC4'; // Using Firebase API key temporarily
 // String get kGoogleApiKey => dotenv.env['GOOGLE_PLACES_API_KEY'] ?? 'YOUR_GOOGLE_PLACES_API_KEY';
 
 class AddressSuggestion {
@@ -62,6 +65,7 @@ class _PostFoodScreenState extends State<PostFoodScreen> {
   bool _isLocationLoading = false;
   List<AddressSuggestion> _addressSuggestions = [];
   bool _showSuggestions = false;
+  Timer? _debouncer;
 
   @override
   void dispose() {
@@ -69,6 +73,7 @@ class _PostFoodScreenState extends State<PostFoodScreen> {
     _descriptionController.dispose();
     _pickupInstructionsController.dispose();
     _locationController.dispose();
+    _debouncer?.cancel();
     super.dispose();
   }
 
@@ -129,7 +134,8 @@ class _PostFoodScreenState extends State<PostFoodScreen> {
     }
   }
 
-  Widget _buildImagePickerOption(String title, IconData icon, VoidCallback onTap) {
+  Widget _buildImagePickerOption(
+      String title, IconData icon, VoidCallback onTap) {
     return Material(
       color: Colors.green[50],
       borderRadius: BorderRadius.circular(12),
@@ -167,7 +173,7 @@ class _PostFoodScreenState extends State<PostFoodScreen> {
           maxHeight: 1024,
           imageQuality: 80,
         );
-        
+
         if (images.isNotEmpty && _selectedImages.length + images.length <= 5) {
           setState(() {
             _selectedImages.addAll(images.map((e) => File(e.path)));
@@ -203,7 +209,7 @@ class _PostFoodScreenState extends State<PostFoodScreen> {
   }
 
   // Google Places API integration with CORS handling
-  void _onAddressChanged(String query) async {
+  void _onAddressChanged(String query) {
     if (query.length < 3) {
       setState(() {
         _addressSuggestions = [];
@@ -212,6 +218,16 @@ class _PostFoodScreenState extends State<PostFoodScreen> {
       return;
     }
 
+    // Cancel previous timer
+    _debouncer?.cancel();
+
+    // Set new timer
+    _debouncer = Timer(const Duration(milliseconds: 500), () {
+      _fetchAddressSuggestions(query);
+    });
+  }
+
+  Future<void> _fetchAddressSuggestions(String query) async {
     try {
       // Use Places Autocomplete API
       final url = 'https://maps.googleapis.com/maps/api/place/autocomplete/json'
@@ -219,7 +235,7 @@ class _PostFoodScreenState extends State<PostFoodScreen> {
           '&key=$kGoogleApiKey'
           '&types=establishment|geocode'
           '&language=en';
-          
+
       final response = await http.get(
         Uri.parse(url),
         headers: {
@@ -227,47 +243,61 @@ class _PostFoodScreenState extends State<PostFoodScreen> {
         },
       ).timeout(const Duration(seconds: 10));
 
+      if (!mounted) return;
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        
+
         if (data['status'] == 'OK' && data['predictions'] != null) {
           final suggestions = <AddressSuggestion>[];
-          
-          for (final prediction in (data['predictions'] as List).take(5)) {
-            final placeId = prediction['place_id'];
-            final description = prediction['description'];
-            
-            // Get place details for coordinates
-            final detailUrl = 'https://maps.googleapis.com/maps/api/place/details/json'
-                '?place_id=$placeId'
-                '&key=$kGoogleApiKey'
-                '&fields=geometry';
-                
-            final detailResponse = await http.get(
-              Uri.parse(detailUrl),
-              headers: {'Content-Type': 'application/json'},
-            ).timeout(const Duration(seconds: 5));
-            
-            if (detailResponse.statusCode == 200) {
-              final detailData = json.decode(detailResponse.body);
-              
-              if (detailData['status'] == 'OK' && detailData['result'] != null) {
-                final location = detailData['result']['geometry']['location'];
-                
-                suggestions.add(AddressSuggestion(
-                  description: description,
-                  latitude: location['lat'].toDouble(),
-                  longitude: location['lng'].toDouble(),
-                  placeId: placeId,
-                ));
+          final predictions = (data['predictions'] as List).take(5);
+
+          // Process predictions in parallel
+          await Future.wait(
+            predictions.map((prediction) async {
+              final placeId = prediction['place_id'];
+              final description = prediction['description'];
+
+              try {
+                final detailUrl =
+                    'https://maps.googleapis.com/maps/api/place/details/json'
+                    '?place_id=$placeId'
+                    '&key=$kGoogleApiKey'
+                    '&fields=geometry';
+
+                final detailResponse = await http.get(
+                  Uri.parse(detailUrl),
+                  headers: {'Content-Type': 'application/json'},
+                ).timeout(const Duration(seconds: 5));
+
+                if (detailResponse.statusCode == 200) {
+                  final detailData = json.decode(detailResponse.body);
+
+                  if (detailData['status'] == 'OK' &&
+                      detailData['result'] != null) {
+                    final location =
+                        detailData['result']['geometry']['location'];
+
+                    suggestions.add(AddressSuggestion(
+                      description: description,
+                      latitude: location['lat'].toDouble(),
+                      longitude: location['lng'].toDouble(),
+                      placeId: placeId,
+                    ));
+                  }
+                }
+              } catch (e) {
+                print('Error fetching place details: $e');
               }
-            }
+            }),
+          );
+
+          if (mounted) {
+            setState(() {
+              _addressSuggestions = suggestions;
+              _showSuggestions = suggestions.isNotEmpty;
+            });
           }
-          
-          setState(() {
-            _addressSuggestions = suggestions;
-            _showSuggestions = suggestions.isNotEmpty;
-          });
         } else {
           _handleApiError(data['status']);
         }
@@ -287,10 +317,11 @@ class _PostFoodScreenState extends State<PostFoodScreen> {
       _addressSuggestions = [];
       _showSuggestions = false;
     });
-    
+
     switch (status) {
       case 'REQUEST_DENIED':
-        _showError('Google Places API key is invalid or restricted. Please check your API key setup.');
+        _showError(
+            'Google Places API key is invalid or restricted. Please check your API key setup.');
         break;
       case 'OVER_QUERY_LIMIT':
         _showError('Google Places API quota exceeded. Please try again later.');
@@ -304,7 +335,8 @@ class _PostFoodScreenState extends State<PostFoodScreen> {
   }
 
   void _showCorsWarning() {
-    _showError('⚠️ Direct Google Places API blocked by browser security. Use "Manual Entry" or run on mobile device.');
+    _showError(
+        '⚠️ Direct Google Places API blocked by browser security. Use "Manual Entry" or run on mobile device.');
     _showFallbackSuggestions(_locationController.text);
   }
 
@@ -313,7 +345,7 @@ class _PostFoodScreenState extends State<PostFoodScreen> {
       _addressSuggestions = [];
       _showSuggestions = false;
     });
-    
+
     switch (statusCode) {
       case 403:
         _showError('🔑 Google Places API key is invalid or restricted.');
@@ -336,7 +368,7 @@ class _PostFoodScreenState extends State<PostFoodScreen> {
         placeId: 'manual_entry',
       ),
     ];
-    
+
     setState(() {
       _addressSuggestions = fallbackSuggestions;
       _showSuggestions = true;
@@ -352,7 +384,8 @@ class _PostFoodScreenState extends State<PostFoodScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Type your address in the location field above to get suggestions, or enter it manually:'),
+            const Text(
+                'Type your address in the location field above to get suggestions, or enter it manually:'),
             const SizedBox(height: 16),
             TextField(
               decoration: const InputDecoration(
@@ -365,7 +398,8 @@ class _PostFoodScreenState extends State<PostFoodScreen> {
                   setState(() {
                     _locationController.text = value;
                     _selectedLocation = LocationData(
-                      latitude: 0.0, // User will need to set manually or use GPS
+                      latitude:
+                          0.0, // User will need to set manually or use GPS
                       longitude: 0.0,
                       address: value,
                     );
@@ -388,16 +422,17 @@ class _PostFoodScreenState extends State<PostFoodScreen> {
   void _selectAddress(AddressSuggestion suggestion) {
     setState(() {
       _locationController.text = suggestion.description;
-      
+
       if (suggestion.placeId == 'manual_entry') {
         // For manual entries, allow user to set coordinates later or use GPS
         _selectedLocation = LocationData(
           latitude: suggestion.latitude,
           longitude: suggestion.longitude,
-          address: suggestion.description.replaceAll(' (Manual Entry - Tap to set coordinates)', ''),
+          address: suggestion.description
+              .replaceAll(' (Manual Entry - Tap to set coordinates)', ''),
         );
         _showSuggestions = false;
-        
+
         // Show dialog to get GPS coordinates
         _showManualLocationDialog();
       } else {
@@ -417,7 +452,8 @@ class _PostFoodScreenState extends State<PostFoodScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Set Location'),
-        content: const Text('Would you like to use your current GPS location for this address, or enter it manually?'),
+        content: const Text(
+            'Would you like to use your current GPS location for this address, or enter it manually?'),
         actions: [
           TextButton(
             onPressed: () {
@@ -465,7 +501,8 @@ class _PostFoodScreenState extends State<PostFoodScreen> {
       );
 
       // In a real app, you'd use reverse geocoding to get the actual address
-      final address = 'Current Location (${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)})';
+      final address =
+          'Current Location (${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)})';
 
       setState(() {
         _selectedLocation = LocationData(
@@ -562,7 +599,7 @@ class _PostFoodScreenState extends State<PostFoodScreen> {
     try {
       final foodPost = FoodPostModel(
         id: '', // Will be set by Firestore
-        donorId: widget.userProfile.id,
+        donorId: widget.userProfile.uid,
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
         imageUrls: [], // Will be populated after upload
@@ -729,13 +766,15 @@ class _PostFoodScreenState extends State<PostFoodScreen> {
         decoration: BoxDecoration(
           color: Colors.green[50],
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.green[200]!, width: 2, style: BorderStyle.solid),
+          border: Border.all(
+              color: Colors.green[200]!, width: 2, style: BorderStyle.solid),
         ),
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.add_photo_alternate, size: 32, color: Colors.green[600]),
+              Icon(Icons.add_photo_alternate,
+                  size: 32, color: Colors.green[600]),
               const SizedBox(height: 8),
               Text(
                 'Add Photos',
@@ -762,7 +801,8 @@ class _PostFoodScreenState extends State<PostFoodScreen> {
             crossAxisSpacing: 8,
             mainAxisSpacing: 8,
           ),
-          itemCount: _selectedImages.length + (_selectedImages.length < 5 ? 1 : 0),
+          itemCount:
+              _selectedImages.length + (_selectedImages.length < 5 ? 1 : 0),
           itemBuilder: (context, index) {
             if (index == _selectedImages.length) {
               return GestureDetector(
@@ -777,7 +817,7 @@ class _PostFoodScreenState extends State<PostFoodScreen> {
                 ),
               );
             }
-            
+
             return Stack(
               children: [
                 ClipRRect(
@@ -966,7 +1006,8 @@ class _PostFoodScreenState extends State<PostFoodScreen> {
                   fillColor: Colors.grey[50],
                 ),
                 validator: (value) {
-                  if (_selectedLocation == null || _locationController.text.trim().isEmpty) {
+                  if (_selectedLocation == null ||
+                      _locationController.text.trim().isEmpty) {
                     return 'Please select a pickup location';
                   }
                   return null;
@@ -1171,7 +1212,8 @@ class _PostFoodScreenState extends State<PostFoodScreen> {
                       ),
                     ),
                   ),
-                  Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[600]),
+                  Icon(Icons.arrow_forward_ios,
+                      size: 16, color: Colors.grey[600]),
                 ],
               ),
             ),
@@ -1236,4 +1278,4 @@ class _PostFoodScreenState extends State<PostFoodScreen> {
   String _formatDateTime(DateTime dateTime) {
     return '${dateTime.month}/${dateTime.day}/${dateTime.year} at ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
-} 
+}

@@ -9,7 +9,8 @@ import '../controllers/food_post_controller.dart';
 class InteractiveMapScreen extends StatefulWidget {
   final UserModel userProfile;
 
-  const InteractiveMapScreen({Key? key, required this.userProfile}) : super(key: key);
+  const InteractiveMapScreen({Key? key, required this.userProfile})
+      : super(key: key);
 
   @override
   State<InteractiveMapScreen> createState() => _InteractiveMapScreenState();
@@ -50,7 +51,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
         permission = await Geolocator.requestPermission();
       }
 
-      if (permission == LocationPermission.whileInUse || 
+      if (permission == LocationPermission.whileInUse ||
           permission == LocationPermission.always) {
         Position position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high,
@@ -130,23 +131,26 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
     List<FoodPostModel> filtered = _allPosts.where((post) {
       // Filter by distance
       final distance = Geolocator.distanceBetween(
-        _currentPosition!.latitude,
-        _currentPosition!.longitude,
-        post.pickupLocation.latitude,
-        post.pickupLocation.longitude,
-      ) / 1000; // Convert to km
+            _currentPosition!.latitude,
+            _currentPosition!.longitude,
+            post.pickupLocation.latitude,
+            post.pickupLocation.longitude,
+          ) /
+          1000; // Convert to km
 
       if (distance > _maxDistance) return false;
 
       // Filter by dietary tags
       if (_selectedTags.isNotEmpty) {
-        final hasMatchingTag = _selectedTags.any((tag) => post.dietaryTags.contains(tag));
+        final hasMatchingTag =
+            _selectedTags.any((tag) => post.dietaryTags.contains(tag));
         if (!hasMatchingTag) return false;
       }
 
       // Filter by time remaining
       final timeRemaining = post.expiryTime.difference(DateTime.now());
-      if (timeRemaining.inHours > _maxTimeRemaining || timeRemaining.isNegative) {
+      if (timeRemaining.inHours > _maxTimeRemaining ||
+          timeRemaining.isNegative) {
         return false;
       }
 
@@ -199,9 +203,9 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
       ),
       infoWindow: InfoWindow(
         title: post.title,
-        snippet: post.description.length > 50 
-          ? '${post.description.substring(0, 50)}...'
-          : post.description,
+        snippet: post.description.length > 50
+            ? '${post.description.substring(0, 50)}...'
+            : post.description,
       ),
       icon: await _getFoodMarkerIcon(post),
       onTap: () => _showFoodDetails(post),
@@ -210,7 +214,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
 
   Future<BitmapDescriptor> _getFoodMarkerIcon(FoodPostModel post) async {
     // Color markers based on dietary tags
-    if (post.dietaryTags.contains(DietaryTag.vegetarian) || 
+    if (post.dietaryTags.contains(DietaryTag.vegetarian) ||
         post.dietaryTags.contains(DietaryTag.vegan)) {
       return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
     } else if (post.dietaryTags.contains(DietaryTag.halal)) {
@@ -241,7 +245,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
       await FoodPostController.updateFoodPostStatus(
         postId: post.id,
         status: FoodPostStatus.claimed,
-        claimedBy: widget.userProfile.id,
+        claimedBy: widget.userProfile.uid,
       );
 
       // Refresh the data
@@ -393,7 +397,9 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
                   () => _showDietaryFilter(),
                 ),
                 const SizedBox(width: 8),
-                if (_selectedTags.isNotEmpty || _maxDistance != 10.0 || _maxTimeRemaining != 24)
+                if (_selectedTags.isNotEmpty ||
+                    _maxDistance != 10.0 ||
+                    _maxTimeRemaining != 24)
                   _buildClearFiltersChip(),
               ],
             ),
@@ -494,7 +500,8 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen> {
             _mapController = controller;
           },
           initialCameraPosition: CameraPosition(
-            target: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+            target:
+                LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
             zoom: 14.0,
           ),
           markers: _markers,
@@ -742,11 +749,12 @@ class FoodDetailsBottomSheet extends StatelessWidget {
     String distance = '';
     if (currentPosition != null) {
       double distanceInKm = Geolocator.distanceBetween(
-        currentPosition!.latitude,
-        currentPosition!.longitude,
-        post.pickupLocation.latitude,
-        post.pickupLocation.longitude,
-      ) / 1000;
+            currentPosition!.latitude,
+            currentPosition!.longitude,
+            post.pickupLocation.latitude,
+            post.pickupLocation.longitude,
+          ) /
+          1000;
       distance = '${distanceInKm.toStringAsFixed(1)} km away';
     }
 
@@ -855,7 +863,8 @@ class FoodDetailsBottomSheet extends StatelessWidget {
                                       child: CircularProgressIndicator(),
                                     ),
                                   ),
-                                  errorWidget: (context, url, error) => Container(
+                                  errorWidget: (context, url, error) =>
+                                      Container(
                                     color: Colors.grey[200],
                                     child: const Icon(Icons.error),
                                   ),
@@ -956,7 +965,8 @@ class FoodDetailsBottomSheet extends StatelessWidget {
                           ),
                         ],
                       ),
-                      if (post.pickupInstructions != null && post.pickupInstructions!.isNotEmpty) ...[
+                      if (post.pickupInstructions != null &&
+                          post.pickupInstructions!.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -982,10 +992,12 @@ class FoodDetailsBottomSheet extends StatelessWidget {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: post.status == FoodPostStatus.available ? onClaim : null,
+                    onPressed: post.status == FoodPostStatus.available
+                        ? onClaim
+                        : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: post.status == FoodPostStatus.available 
-                          ? Colors.green[600] 
+                      backgroundColor: post.status == FoodPostStatus.available
+                          ? Colors.green[600]
                           : Colors.grey[400],
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
@@ -994,8 +1006,8 @@ class FoodDetailsBottomSheet extends StatelessWidget {
                       elevation: 0,
                     ),
                     child: Text(
-                      post.status == FoodPostStatus.available 
-                          ? 'Claim This Food' 
+                      post.status == FoodPostStatus.available
+                          ? 'Claim This Food'
                           : 'Already Claimed',
                       style: const TextStyle(
                         fontSize: 18,
@@ -1035,11 +1047,12 @@ class FoodListTile extends StatelessWidget {
     String distance = '';
     if (currentPosition != null) {
       double distanceInKm = Geolocator.distanceBetween(
-        currentPosition!.latitude,
-        currentPosition!.longitude,
-        post.pickupLocation.latitude,
-        post.pickupLocation.longitude,
-      ) / 1000;
+            currentPosition!.latitude,
+            currentPosition!.longitude,
+            post.pickupLocation.latitude,
+            post.pickupLocation.longitude,
+          ) /
+          1000;
       distance = '${distanceInKm.toStringAsFixed(1)} km';
     }
 
@@ -1079,7 +1092,8 @@ class FoodListTile extends StatelessWidget {
                             placeholder: (context, url) => Container(
                               color: Colors.grey[200],
                               child: const Center(
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
                               ),
                             ),
                             errorWidget: (context, error, stackTrace) {
@@ -1098,7 +1112,7 @@ class FoodListTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 16),
-                
+
                 // Content
                 Expanded(
                   child: Column(
@@ -1140,7 +1154,7 @@ class FoodListTile extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      
+
                       // Description
                       Text(
                         post.description,
@@ -1152,7 +1166,7 @@ class FoodListTile extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 8),
-                      
+
                       // Distance and time
                       Row(
                         children: [
@@ -1187,7 +1201,7 @@ class FoodListTile extends StatelessWidget {
                           ),
                         ],
                       ),
-                      
+
                       // Dietary tags
                       if (post.dietaryTags.isNotEmpty) ...[
                         const SizedBox(height: 8),
@@ -1218,7 +1232,7 @@ class FoodListTile extends StatelessWidget {
                     ],
                   ),
                 ),
-                
+
                 // Arrow
                 Icon(
                   Icons.arrow_forward_ios,
@@ -1236,7 +1250,7 @@ class FoodListTile extends StatelessWidget {
   String _formatTimeRemaining(DateTime expiryTime) {
     final now = DateTime.now();
     final difference = expiryTime.difference(now);
-    
+
     if (difference.isNegative) {
       return 'Expired';
     } else if (difference.inDays > 0) {

@@ -162,64 +162,32 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class PostsScreen extends StatelessWidget {
-  const PostsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: AppColors.background,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.restaurant, size: 80, color: AppColors.primary),
-            SizedBox(height: 16),
-            Text(
-              'Food Posts',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppColors.onSurface,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Browse available food',
-              style: TextStyle(fontSize: 16, color: AppColors.onSurfaceVariant),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class ChatsScreen extends StatelessWidget {
   const ChatsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: AppColors.background,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.chat, size: 80, color: AppColors.primary),
-            SizedBox(height: 16),
+            const Icon(Icons.chat, size: 80, color: AppColors.primary),
+            const SizedBox(height: 16),
             Text(
-              'Messages',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+              'Chats',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 color: AppColors.onSurface,
+                fontWeight: FontWeight.bold,
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
-              'Chat with other users',
-              style: TextStyle(fontSize: 16, color: AppColors.onSurfaceVariant),
+              'Your conversations will appear here',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: AppColors.onSurfaceVariant,
+              ),
             ),
           ],
         ),

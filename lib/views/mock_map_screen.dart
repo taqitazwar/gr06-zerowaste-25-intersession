@@ -6,6 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../models/food_post_model.dart';
 import '../models/user_model.dart';
+import '../models/location_data.dart';
 
 class MockMapScreen extends StatefulWidget {
   final UserModel userProfile;
@@ -46,7 +47,7 @@ class _MockMapScreenState extends State<MockMapScreen> {
         permission = await Geolocator.requestPermission();
       }
 
-      if (permission == LocationPermission.whileInUse || 
+      if (permission == LocationPermission.whileInUse ||
           permission == LocationPermission.always) {
         Position position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high,
@@ -100,8 +101,11 @@ class _MockMapScreenState extends State<MockMapScreen> {
         id: 'mock1',
         donorId: 'user1',
         title: 'Fresh Pizza Slices',
-        description: '3 slices of pepperoni pizza, still warm! Perfect for lunch.',
-        imageUrls: ['https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400'],
+        description:
+            '3 slices of pepperoni pizza, still warm! Perfect for lunch.',
+        imageUrls: [
+          'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400'
+        ],
         pickupLocation: LocationData(
           latitude: _currentPosition!.latitude + 0.002,
           longitude: _currentPosition!.longitude + 0.002,
@@ -117,8 +121,11 @@ class _MockMapScreenState extends State<MockMapScreen> {
         id: 'mock2',
         donorId: 'user2',
         title: 'Vegetarian Sandwich',
-        description: 'Hummus and veggie sandwich with fresh lettuce, tomatoes, and cucumber.',
-        imageUrls: ['https://images.unsplash.com/photo-1553909489-cd47e0ef937f?w=400'],
+        description:
+            'Hummus and veggie sandwich with fresh lettuce, tomatoes, and cucumber.',
+        imageUrls: [
+          'https://images.unsplash.com/photo-1553909489-cd47e0ef937f?w=400'
+        ],
         pickupLocation: LocationData(
           latitude: _currentPosition!.latitude - 0.003,
           longitude: _currentPosition!.longitude + 0.001,
@@ -134,14 +141,21 @@ class _MockMapScreenState extends State<MockMapScreen> {
         id: 'mock3',
         donorId: 'user3',
         title: 'Fresh Fruit Salad',
-        description: 'Mixed fruit salad with strawberries, grapes, and apple. Perfect healthy snack!',
-        imageUrls: ['https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400'],
+        description:
+            'Mixed fruit salad with strawberries, grapes, and apple. Perfect healthy snack!',
+        imageUrls: [
+          'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400'
+        ],
         pickupLocation: LocationData(
           latitude: _currentPosition!.latitude + 0.001,
           longitude: _currentPosition!.longitude - 0.002,
           address: '789 Queen Street, Toronto',
         ),
-        dietaryTags: [DietaryTag.vegetarian, DietaryTag.vegan, DietaryTag.glutenFree],
+        dietaryTags: [
+          DietaryTag.vegetarian,
+          DietaryTag.vegan,
+          DietaryTag.glutenFree
+        ],
         expiryTime: DateTime.now().add(const Duration(hours: 6)),
         createdAt: DateTime.now().subtract(const Duration(minutes: 45)),
         updatedAt: DateTime.now().subtract(const Duration(minutes: 45)),
@@ -151,8 +165,11 @@ class _MockMapScreenState extends State<MockMapScreen> {
         id: 'mock4',
         donorId: 'user4',
         title: 'Halal Chicken Wrap',
-        description: 'Delicious halal chicken wrap with fresh vegetables and tahini sauce.',
-        imageUrls: ['https://images.unsplash.com/photo-1529006557810-274b9b2fc783?w=400'],
+        description:
+            'Delicious halal chicken wrap with fresh vegetables and tahini sauce.',
+        imageUrls: [
+          'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?w=400'
+        ],
         pickupLocation: LocationData(
           latitude: _currentPosition!.latitude - 0.001,
           longitude: _currentPosition!.longitude - 0.003,
@@ -189,9 +206,9 @@ class _MockMapScreenState extends State<MockMapScreen> {
       ),
       infoWindow: InfoWindow(
         title: post.title,
-        snippet: post.description.length > 50 
-          ? '${post.description.substring(0, 50)}...'
-          : post.description,
+        snippet: post.description.length > 50
+            ? '${post.description.substring(0, 50)}...'
+            : post.description,
       ),
       icon: await _getFoodMarkerIcon(post),
       onTap: () => _showFoodDetails(post),
@@ -199,7 +216,7 @@ class _MockMapScreenState extends State<MockMapScreen> {
   }
 
   Future<BitmapDescriptor> _getFoodMarkerIcon(FoodPostModel post) async {
-    if (post.dietaryTags.contains(DietaryTag.vegetarian) || 
+    if (post.dietaryTags.contains(DietaryTag.vegetarian) ||
         post.dietaryTags.contains(DietaryTag.vegan)) {
       return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
     } else if (post.dietaryTags.contains(DietaryTag.halal)) {
@@ -349,7 +366,8 @@ class _MockMapScreenState extends State<MockMapScreen> {
             _mapController = controller;
           },
           initialCameraPosition: CameraPosition(
-            target: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+            target:
+                LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
             zoom: 14.0,
           ),
           markers: _markers,
@@ -528,7 +546,8 @@ class MockFoodListTile extends StatelessWidget {
           child: Icon(Icons.fastfood, color: Colors.green[600]),
         ),
         title: Text(post.title),
-        subtitle: Text(post.description, maxLines: 2, overflow: TextOverflow.ellipsis),
+        subtitle: Text(post.description,
+            maxLines: 2, overflow: TextOverflow.ellipsis),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
         onTap: onTap,
       ),

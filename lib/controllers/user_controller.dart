@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import '../models/user_model.dart';
+import '../models/location_data.dart';
 
 class UserController {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -20,19 +21,21 @@ class UserController {
   }) async {
     try {
       final newUser = UserModel(
-        id: userId,
+        uid: userId,
         email: email,
-        displayName: displayName,
+        name: displayName,
         profileImageUrl: profileImageUrl,
-        currentLocation: initialLocation,
+        location: initialLocation != null
+            ? GeoPoint(initialLocation.latitude, initialLocation.longitude)
+            : const GeoPoint(0, 0),
+        fcmToken: '',
         createdAt: DateTime.now(),
-        lastActive: DateTime.now(),
       );
 
       await _firestore
           .collection(_usersCollection)
           .doc(userId)
-          .set(newUser.toFirestore());
+          .set(newUser.toMap());
 
       return newUser;
     } catch (e) {
@@ -50,7 +53,7 @@ class UserController {
           .get();
 
       if (doc.exists) {
-        return UserModel.fromFirestore(doc);
+        return UserModel.fromDocument(doc);
       }
       return null;
     } catch (e) {
@@ -70,13 +73,17 @@ class UserController {
   }) async {
     try {
       final updates = <String, dynamic>{
-        'lastActive': Timestamp.fromDate(DateTime.now()),
+        // No lastActive in model, so skip
       };
 
-      if (displayName != null) updates['displayName'] = displayName;
+      if (displayName != null) updates['name'] = displayName;
       if (profileImageUrl != null) updates['profileImageUrl'] = profileImageUrl;
       if (removeProfileImage) updates['profileImageUrl'] = null;
-      if (currentLocation != null) updates['currentLocation'] = currentLocation.toMap();
+      if (currentLocation != null)
+        updates['location'] = GeoPoint(
+          currentLocation.latitude,
+          currentLocation.longitude,
+        );
       if (fcmToken != null) updates['fcmToken'] = fcmToken;
 
       await _firestore.collection(_usersCollection).doc(userId).update(updates);
@@ -88,10 +95,9 @@ class UserController {
   // Update user's last active time
   static Future<void> updateLastActive(String userId) async {
     try {
-      await _firestore
-          .collection(_usersCollection)
-          .doc(userId)
-          .update({'lastActive': Timestamp.fromDate(DateTime.now())});
+      await _firestore.collection(_usersCollection).doc(userId).update({
+        'lastActive': Timestamp.fromDate(DateTime.now()),
+      });
     } catch (e) {
       print('Error updating last active: $e');
     }
@@ -104,7 +110,7 @@ class UserController {
 
     // First, try to get existing profile
     UserModel? userProfile = await getUserProfile(currentUser.uid);
-    
+
     // If profile doesn't exist, create it
     if (userProfile == null) {
       userProfile = await createUserProfile(
@@ -121,13 +127,13 @@ class UserController {
   }
 
   // Update user location
-  static Future<bool> updateUserLocation(String userId, LocationData location) async {
+  static Future<bool> updateUserLocation(
+    String userId,
+    LocationData location,
+  ) async {
     try {
-      await _firestore
-          .collection(_usersCollection)
-          .doc(userId)
-          .update({
-        'currentLocation': location.toMap(),
+      await _firestore.collection(_usersCollection).doc(userId).update({
+        'location': GeoPoint(location.latitude, location.longitude),
         'lastActive': Timestamp.fromDate(DateTime.now()),
       });
       return true;
@@ -138,7 +144,11 @@ class UserController {
   }
 
   // Increment user stats
-  static Future<void> incrementUserStats(String userId, {bool isPost = false, bool isClaim = false}) async {
+  static Future<void> incrementUserStats(
+    String userId, {
+    bool isPost = false,
+    bool isClaim = false,
+  }) async {
     try {
       final increment = FieldValue.increment(1);
       Map<String, dynamic> updates = {
@@ -152,10 +162,7 @@ class UserController {
         updates['totalClaims'] = increment;
       }
 
-      await _firestore
-          .collection(_usersCollection)
-          .doc(userId)
-          .update(updates);
+      await _firestore.collection(_usersCollection).doc(userId).update(updates);
     } catch (e) {
       print('Error incrementing user stats: $e');
     }
@@ -170,20 +177,17 @@ class UserController {
       // Create a unique filename
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final fileName = 'profile_$userId$timestamp.jpg';
-      
+
       // Upload to Firebase Storage
       final ref = _storage.ref().child('profile_pictures/$fileName');
       final uploadTask = ref.putFile(imageFile);
-      
+
       final snapshot = await uploadTask;
       final downloadUrl = await snapshot.ref.getDownloadURL();
-      
+
       // Update user profile with new image URL
-      await updateUserProfile(
-        userId: userId,
-        profileImageUrl: downloadUrl,
-      );
-      
+      await updateUserProfile(userId: userId, profileImageUrl: downloadUrl);
+
       return downloadUrl;
     } catch (e) {
       throw Exception('Failed to upload profile picture: $e');
@@ -200,4 +204,4 @@ class UserController {
       print('Warning: Could not delete old profile picture: $e');
     }
   }
-} 
+}
