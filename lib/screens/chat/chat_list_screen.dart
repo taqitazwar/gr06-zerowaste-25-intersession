@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme.dart';
 import '../../models/message_model.dart';
+import '../../models/user_model.dart';
 import 'chat_screen.dart';
 
 class ChatListScreen extends StatefulWidget {
@@ -95,10 +96,11 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   return const SizedBox.shrink();
                 }
 
-                final userData =
-                    userSnapshot.data?.data() as Map<String, dynamic>?;
-                final userName = userData?['displayName'] ?? 'Unknown User';
-                final userImage = userData?['profileImageUrl'];
+                final userData = userSnapshot.data?.exists == true
+                    ? UserModel.fromDocument(userSnapshot.data!)
+                    : null;
+                final userName = userData?.name ?? 'Unknown User';
+                final userImage = userData?.profileImageUrl;
 
                 return _buildChatTile(
                   chatId: chatId,
