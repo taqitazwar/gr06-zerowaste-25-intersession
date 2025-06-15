@@ -37,6 +37,8 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
       final QuerySnapshot snapshot = await _firestore
           .collection('posts')
           .where('status', isEqualTo: PostStatus.available.name)
+          .where('expiry', isGreaterThan: Timestamp.fromDate(DateTime.now()))
+          .orderBy('expiry')
           .orderBy('timestamp', descending: true)
           .get();
 
@@ -63,10 +65,7 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
         title: const Text('Available Food'),
         backgroundColor: AppColors.primary,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _fetchPosts,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _fetchPosts),
         ],
       ),
       body: _buildBody(),
@@ -76,7 +75,7 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
             context,
             MaterialPageRoute(builder: (context) => const AddPostScreen()),
           );
-          
+
           if (result == true) {
             _fetchPosts();
           }
@@ -101,11 +100,7 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.error_outline,
-              color: Colors.red,
-              size: 60,
-            ),
+            const Icon(Icons.error_outline, color: Colors.red, size: 60),
             const SizedBox(height: 16),
             Text(
               _errorMessage,
@@ -127,34 +122,27 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.no_food,
-              color: AppColors.secondary,
-              size: 80,
-            ),
+            const Icon(Icons.no_food, color: AppColors.secondary, size: 80),
             const SizedBox(height: 16),
             const Text(
               'No food available right now',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             const Text(
               'Be the first to share some food!',
-              style: TextStyle(
-                color: Colors.grey,
-              ),
+              style: TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: () async {
                 final result = await Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const AddPostScreen()),
+                  MaterialPageRoute(
+                    builder: (context) => const AddPostScreen(),
+                  ),
                 );
-                
+
                 if (result == true) {
                   _fetchPosts();
                 }
@@ -164,7 +152,10 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
             ),
           ],
@@ -212,7 +203,9 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
                   child: Image.network(
                     post.imageUrl,
                     height: 200,
@@ -223,7 +216,9 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
                         height: 200,
                         decoration: BoxDecoration(
                           color: Colors.grey[100],
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(16),
+                          ),
                         ),
                         child: const Center(
                           child: Column(
@@ -253,11 +248,15 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
                         height: 200,
                         decoration: BoxDecoration(
                           color: Colors.grey[100],
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(16),
+                          ),
                         ),
                         child: const Center(
                           child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              AppColors.primary,
+                            ),
                           ),
                         ),
                       );
@@ -270,7 +269,10 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
                     top: 12,
                     right: 12,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.primary,
                         borderRadius: BorderRadius.circular(20),
@@ -294,7 +296,7 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
                   ),
               ],
             ),
-          
+
           // Content Section
           Padding(
             padding: const EdgeInsets.all(20),
@@ -314,7 +316,7 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 8),
-                
+
                 // Description
                 Text(
                   post.description,
@@ -327,15 +329,11 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Location
                 Row(
                   children: [
-                    Icon(
-                      Icons.location_on,
-                      color: Colors.grey[500],
-                      size: 18,
-                    ),
+                    Icon(Icons.location_on, color: Colors.grey[500], size: 18),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
@@ -352,7 +350,7 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                
+
                 // Time info row
                 Row(
                   children: [
@@ -379,10 +377,13 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                
+
                 // Expiry info
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.orange[50],
                     borderRadius: BorderRadius.circular(8),
@@ -391,11 +392,7 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        Icons.schedule,
-                        color: Colors.orange[700],
-                        size: 16,
-                      ),
+                      Icon(Icons.schedule, color: Colors.orange[700], size: 16),
                       const SizedBox(width: 6),
                       Text(
                         'Expires in: ${_getExpiryText(post)}',
@@ -409,7 +406,7 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                
+
                 // Action buttons
                 Row(
                   children: [
@@ -433,9 +430,11 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: isCurrentUserPost ? null : () {
-                          _claimPost(post);
-                        },
+                        onPressed: isCurrentUserPost
+                            ? null
+                            : () {
+                                _claimPost(post);
+                              },
                         icon: const Icon(Icons.check_circle_outline, size: 18),
                         label: const Text('Claim'),
                         style: ElevatedButton.styleFrom(
@@ -465,7 +464,7 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
     final expiryDate = post.expiry;
     final now = DateTime.now();
     final difference = expiryDate.difference(now);
-    
+
     if (difference.isNegative) {
       return 'Expired';
     } else if (difference.inDays > 0) {
@@ -477,27 +476,62 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
     }
   }
 
-  void _viewPostDetails(PostModel post) {
-    Navigator.push(
+  void _viewPostDetails(PostModel post) async {
+    final result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => PostDetailsScreen(post: post)),
-    );
-  }
-
-  void _claimPost(PostModel post) {
-    // TODO: Implement claim functionality
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Feature Coming Soon'),
-        content: const Text('Claim functionality will be implemented in the next update.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
+      MaterialPageRoute(
+        builder: (context) => PostDetailsScreen(
+          post: post,
+          isOwnPost: post.postedBy == _auth.currentUser?.uid,
+        ),
       ),
     );
+
+    // Refresh posts if the post was claimed
+    if (result == true) {
+      _fetchPosts();
+    }
   }
-} 
+
+  void _claimPost(PostModel post) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('You must be logged in to claim food');
+      }
+
+      // Update post status
+      await _firestore.collection('posts').doc(post.postId).update({
+        'status': PostStatus.claimed.name,
+        'claimedBy': user.uid,
+        'updatedAt': Timestamp.fromDate(DateTime.now()),
+      });
+
+      // Increment user's claim count
+      await _firestore.collection('users').doc(user.uid).update({
+        'totalClaims': FieldValue.increment(1),
+        'lastActive': Timestamp.fromDate(DateTime.now()),
+      });
+
+      // Show success message and refresh posts
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Food claimed successfully!'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+        _fetchPosts(); // Refresh the list
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to claim food: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+}
