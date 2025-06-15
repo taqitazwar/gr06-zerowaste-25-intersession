@@ -6,10 +6,11 @@ import 'core/theme.dart';
 import 'firebase_options.dart';
 import 'screens/auth/sign_in_screen.dart';
 import 'screens/home/home_screen.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Load environment variables
   try {
     await dotenv.load(fileName: ".env");
@@ -17,12 +18,13 @@ void main() async {
     debugPrint('Error loading environment variables: $e');
     // Continue execution even if .env fails to load
   }
-  
+
   // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Initialize notifications
+  await NotificationService.initialize();
+
   runApp(const ZeroWasteApp());
 }
 
@@ -57,7 +59,9 @@ class AuthWrapper extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      AppColors.primary,
+                    ),
                   ),
                   SizedBox(height: 16),
                   Text(
@@ -72,12 +76,12 @@ class AuthWrapper extends StatelessWidget {
             ),
           );
         }
-        
+
         // User is signed in
         if (snapshot.hasData) {
           return const HomeScreen();
         }
-        
+
         // User is not signed in
         return const SignInScreen();
       },

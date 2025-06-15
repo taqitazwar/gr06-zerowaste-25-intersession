@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isChatParticipant(participants) {
+      return isAuthenticated() && request.auth.uid in participants;
+    }
+
+    // User collection rules
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
+    }
+
+    // Posts collection rules
+    match /posts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        resource.data.postedBy == request.auth.uid || 
+        resource.data.claimedBy == request.auth.uid
+      );
+      allow delete: if isAuthenticated() && resource.data.postedBy == request.auth.uid;
+    }
+
+    // Chats collection rules
+    match /chats/{chatId} {
+      allow create: if isAuthenticated();
+      allow read, update: if isAuthenticated() && isChatParticipant(resource.data.participants);
+      
+      // Messages subcollection rules
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && isChatParticipant(get(/databases/$(database)/documents/chats/$(chatId)).data.participants);
+        allow create: if isAuthenticated() && isChatParticipant(get(/databases/$(database)/documents/chats/$(chatId)).data.participants) && request.resource.data.senderId == request.auth.uid;
+        allow update: if isAuthenticated() && isChatParticipant(get(/databases/$(database)/documents/chats/$(chatId)).data.participants);
+      }
+    }
+  }
+} 

@@ -31,6 +31,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
   final _locationFocusNode = FocusNode();
   final _imagePicker = ImagePicker();
   final _authService = AuthService();
+  final _locationFocusNode = FocusNode();
   
   XFile? _selectedImage;
   String? _imageUrl;
