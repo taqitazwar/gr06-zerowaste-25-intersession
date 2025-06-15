@@ -9,14 +9,15 @@ import '../food/food_listings_screen.dart';
 import '../chat/chat_list_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final int initialIndex;
+  const HomeScreen({super.key, this.initialIndex = 0});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _currentIndex = 0;
+  late int _currentIndex;
   final _authService = AuthService();
 
   final List<Widget> _screens = [
@@ -26,6 +27,18 @@ class _HomeScreenState extends State<HomeScreen> {
     const ChatListScreen(),
     const ProfileScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+  }
+
+  void switchTab(int index) {
+    if (index >= 0 && index < _screens.length) {
+      setState(() => _currentIndex = index);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
