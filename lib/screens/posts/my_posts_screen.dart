@@ -6,10 +6,12 @@ import '../../core/theme.dart';
 import '../../models/post_model.dart';
 import '../../models/claim_model.dart';
 import '../../services/claim_service.dart';
+import '../../services/rating_service.dart';
 import '../post/add_post_screen.dart';
 import '../post/edit_post_screen.dart';
 import '../post/post_details_screen.dart';
 import '../chat/chat_screen.dart';
+import '../rating/rate_user_screen.dart';
 
 class MyPostsScreen extends StatefulWidget {
   const MyPostsScreen({Key? key}) : super(key: key);
@@ -104,6 +106,52 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
     }
   }
 
+  Future<void> _deletePost(PostModel post) async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Post'),
+        content: Text(
+          'Are you sure you want to delete "${post.title}"? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await _firestore.collection('posts').doc(post.postId).delete();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Post deleted successfully'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+
+      _fetchMyPosts(); // Refresh the list
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to delete post: ${e.toString()}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
   Future<void> _startChatWithClaimer(PostModel post) async {
     try {
       // Get the active claim for this post
@@ -121,7 +169,8 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
       }
 
       // Create a unique chat ID
-      final List<String> participants = [post.postedBy, claim.claimerId]..sort();
+      final List<String> participants = [post.postedBy, claim.claimerId]
+        ..sort();
       final chatId = '${post.postId}_${participants.join('_')}';
 
       // Create or get chat document
@@ -161,6 +210,26 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
           ),
         );
       }
+    }
+  }
+
+  void _rateUser(ClaimModel claim, PostModel post) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RateUserScreen(
+          claimId: claim.claimId,
+          postId: post.postId,
+          toUserId: claim.claimerId,
+          postTitle: post.title,
+          userRole: 'creator', // Current user is the creator
+        ),
+      ),
+    );
+
+    if (result == true) {
+      // Rating was submitted, refresh the screen
+      _fetchMyPosts();
     }
   }
 
@@ -358,57 +427,251 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                 // Claim Management Buttons
                 if (isPending) ...[
                   const SizedBox(height: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Message button (full width)
-                      ElevatedButton.icon(
-                        onPressed: () => _startChatWithClaimer(post),
-                        icon: const Icon(Icons.message_outlined, size: 18),
-                        label: const Text('Message Claimer'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                  // Show claimer info with rating
+                  FutureBuilder<ClaimModel?>(
+                    future: ClaimService.getActiveClaimForPost(post.postId),
+                    builder: (context, claimSnapshot) {
+                      if (!claimSnapshot.hasData ||
+                          claimSnapshot.data == null) {
+                        return const SizedBox.shrink();
+                      }
+
+                      final claim = claimSnapshot.data!;
+                      return FutureBuilder<DocumentSnapshot>(
+                        future: _firestore
+                            .collection('users')
+                            .doc(claim.claimerId)
+                            .get(),
+                        builder: (context, userSnapshot) {
+                          if (!userSnapshot.hasData ||
+                              !userSnapshot.data!.exists) {
+                            return const SizedBox.shrink();
+                          }
+
+                          final userData =
+                              userSnapshot.data!.data() as Map<String, dynamic>;
+                          final claimerName =
+                              userData['name'] ?? 'Unknown User';
+                          final claimerRating = (userData['rating'] ?? 0.0)
+                              .toDouble();
+                          final totalRatings = userData['totalRatings'] ?? 0;
+                          final ratingDisplay = totalRatings == 0
+                              ? 'No ratings yet'
+                              : '${claimerRating.toStringAsFixed(1)} ⭐ ($totalRatings ${totalRatings == 1 ? 'rating' : 'ratings'})';
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Claimer info card
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue[50],
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.blue[200]!),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.person,
+                                          color: Colors.blue,
+                                          size: 20,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        const Text(
+                                          'Claimed by:',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.blue,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      claimerName,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.star,
+                                          color: Colors.amber,
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          ratingDisplay,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey[700],
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Claimed on: ${DateFormat('MMM d, yyyy \'at\' h:mm a').format(claim.timestamp)}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              // Message button (full width)
+                              ElevatedButton.icon(
+                                onPressed: () => _startChatWithClaimer(post),
+                                icon: const Icon(
+                                  Icons.message_outlined,
+                                  size: 18,
+                                ),
+                                label: const Text('Message Claimer'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              // Accept/Reject buttons (side by side)
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: () =>
+                                          _handleClaimAction(post, false),
+                                      icon: const Icon(Icons.close, size: 18),
+                                      label: const Text('Reject'),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.red,
+                                        side: const BorderSide(
+                                          color: Colors.red,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: () =>
+                                          _handleClaimAction(post, true),
+                                      icon: const Icon(Icons.check, size: 18),
+                                      label: const Text('Accept'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ] else if (isCompleted) ...[
+                  const SizedBox(height: 16),
+                  // For completed posts, check if we can rate the claimer
+                  FutureBuilder<ClaimModel?>(
+                    future: ClaimService.getActiveClaimForPost(post.postId),
+                    builder: (context, claimSnapshot) {
+                      if (!claimSnapshot.hasData ||
+                          claimSnapshot.data == null) {
+                        return const SizedBox.shrink();
+                      }
+
+                      final claim = claimSnapshot.data!;
+                      return FutureBuilder<bool>(
+                        future: RatingService.hasRatedUser(
+                          claimId: claim.claimId,
+                          toUserId: claim.claimerId,
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      // Accept/Reject buttons (side by side)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () => _handleClaimAction(post, false),
-                              icon: const Icon(Icons.close, size: 18),
-                              label: const Text('Reject'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.red,
-                                side: const BorderSide(color: Colors.red),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                        builder: (context, ratingSnapshot) {
+                          final hasRated = ratingSnapshot.data ?? false;
+
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => PostDetailsScreen(
+                                          initialPost: post,
+                                          isOwnPost: true,
+                                        ),
+                                      ),
+                                    ).then((value) {
+                                      if (value == true) {
+                                        _fetchMyPosts();
+                                      }
+                                    });
+                                  },
+                                  child: const Text('View Details'),
+                                ),
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: () => _handleClaimAction(post, true),
-                              icon: const Icon(Icons.check, size: 18),
-                              label: const Text('Accept'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: hasRated
+                                    ? OutlinedButton.icon(
+                                        onPressed: null,
+                                        icon: const Icon(Icons.star, size: 18),
+                                        label: const Text('Rated'),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.grey,
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 12,
+                                          ),
+                                        ),
+                                      )
+                                    : ElevatedButton.icon(
+                                        onPressed: () => _rateUser(claim, post),
+                                        icon: const Icon(
+                                          Icons.star_outline,
+                                          size: 18,
+                                        ),
+                                        label: const Text('Rate Claimer'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.amber,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 12,
+                                          ),
+                                        ),
+                                      ),
                               ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                            ],
+                          );
+                        },
+                      );
+                    },
                   ),
                 ],
 
-                // View Details Button
-                if (!isPending) ...[
+                // View Details Button (for available posts)
+                if (!isPending && !isCompleted) ...[
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
@@ -417,8 +680,10 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) =>
-                                PostDetailsScreen(initialPost: post, isOwnPost: true),
+                            builder: (context) => PostDetailsScreen(
+                              initialPost: post,
+                              isOwnPost: true,
+                            ),
                           ),
                         ).then((value) {
                           if (value == true) {
@@ -430,6 +695,22 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                     ),
                   ),
                 ],
+
+                // Delete Button (appears for all posts)
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _deletePost(post),
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: const Text('Delete Post'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),

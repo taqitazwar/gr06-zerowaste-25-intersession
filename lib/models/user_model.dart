@@ -8,6 +8,7 @@ class UserModel {
   final GeoPoint location;
   final String fcmToken;
   final double rating;
+  final int totalRatings;
   final DateTime createdAt;
 
   UserModel({
@@ -18,6 +19,7 @@ class UserModel {
     required this.location,
     required this.fcmToken,
     this.rating = 0.0,
+    this.totalRatings = 0,
     required this.createdAt,
   });
 
@@ -31,6 +33,7 @@ class UserModel {
       'location': location,
       'fcmToken': fcmToken,
       'rating': rating,
+      'totalRatings': totalRatings,
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }
@@ -45,7 +48,8 @@ class UserModel {
       location: map['location'] ?? const GeoPoint(0, 0),
       fcmToken: map['fcmToken'] ?? '',
       rating: (map['rating'] ?? 0.0).toDouble(),
-      createdAt: map['createdAt'] != null 
+      totalRatings: map['totalRatings'] ?? 0,
+      createdAt: map['createdAt'] != null
           ? (map['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
     );
@@ -64,6 +68,7 @@ class UserModel {
     GeoPoint? location,
     String? fcmToken,
     double? rating,
+    int? totalRatings,
     DateTime? createdAt,
   }) {
     return UserModel(
@@ -74,12 +79,19 @@ class UserModel {
       location: location ?? this.location,
       fcmToken: fcmToken ?? this.fcmToken,
       rating: rating ?? this.rating,
+      totalRatings: totalRatings ?? this.totalRatings,
       createdAt: createdAt ?? this.createdAt,
     );
   }
 
+  // Helper method to get formatted rating display
+  String get ratingDisplay {
+    if (totalRatings == 0) return 'No ratings yet';
+    return '${rating.toStringAsFixed(1)} тнР ($totalRatings ${totalRatings == 1 ? 'rating' : 'ratings'})';
+  }
+
   @override
   String toString() {
-    return 'UserModel(uid: $uid, name: $name, email: $email, rating: $rating)';
+    return 'UserModel(uid: $uid, name: $name, email: $email, rating: $rating, totalRatings: $totalRatings)';
   }
-} 
+}
