@@ -1,20 +1,30 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum PickupStatus { pending, completed }
+enum ClaimStatus { 
+  pending,    // Initial state when claim is made
+  accepted,   // Creator accepted the claim
+  rejected    // Creator rejected the claim
+}
 
 class ClaimModel {
   final String claimId;
   final String postId;
   final String claimerId;
+  final String creatorId;  // Post creator's ID
   final DateTime timestamp;
-  final PickupStatus pickupStatus;
+  final ClaimStatus status;
+  final DateTime? responseTimestamp;  // When creator responded
+  final String? responseMessage;      // Optional message from creator
 
   ClaimModel({
     required this.claimId,
     required this.postId,
     required this.claimerId,
+    required this.creatorId,
     required this.timestamp,
-    this.pickupStatus = PickupStatus.pending,
+    this.status = ClaimStatus.pending,
+    this.responseTimestamp,
+    this.responseMessage,
   });
 
   // Convert ClaimModel to Map for Firestore
@@ -23,8 +33,13 @@ class ClaimModel {
       'claimId': claimId,
       'postId': postId,
       'claimerId': claimerId,
+      'creatorId': creatorId,
       'timestamp': Timestamp.fromDate(timestamp),
-      'pickupStatus': pickupStatus.name,
+      'status': status.name,
+      'responseTimestamp': responseTimestamp != null 
+          ? Timestamp.fromDate(responseTimestamp!) 
+          : null,
+      'responseMessage': responseMessage,
     };
   }
 
@@ -34,13 +49,18 @@ class ClaimModel {
       claimId: map['claimId'] ?? '',
       postId: map['postId'] ?? '',
       claimerId: map['claimerId'] ?? '',
+      creatorId: map['creatorId'] ?? '',
       timestamp: map['timestamp'] != null 
           ? (map['timestamp'] as Timestamp).toDate()
           : DateTime.now(),
-      pickupStatus: PickupStatus.values.firstWhere(
-        (e) => e.name == (map['pickupStatus'] ?? 'pending'),
-        orElse: () => PickupStatus.pending,
+      status: ClaimStatus.values.firstWhere(
+        (e) => e.name == (map['status'] ?? 'pending'),
+        orElse: () => ClaimStatus.pending,
       ),
+      responseTimestamp: map['responseTimestamp'] != null
+          ? (map['responseTimestamp'] as Timestamp).toDate()
+          : null,
+      responseMessage: map['responseMessage'],
     );
   }
 
@@ -55,20 +75,26 @@ class ClaimModel {
     String? claimId,
     String? postId,
     String? claimerId,
+    String? creatorId,
     DateTime? timestamp,
-    PickupStatus? pickupStatus,
+    ClaimStatus? status,
+    DateTime? responseTimestamp,
+    String? responseMessage,
   }) {
     return ClaimModel(
       claimId: claimId ?? this.claimId,
       postId: postId ?? this.postId,
       claimerId: claimerId ?? this.claimerId,
+      creatorId: creatorId ?? this.creatorId,
       timestamp: timestamp ?? this.timestamp,
-      pickupStatus: pickupStatus ?? this.pickupStatus,
+      status: status ?? this.status,
+      responseTimestamp: responseTimestamp ?? this.responseTimestamp,
+      responseMessage: responseMessage ?? this.responseMessage,
     );
   }
 
   @override
   String toString() {
-    return 'ClaimModel(claimId: $claimId, postId: $postId, status: $pickupStatus)';
+    return 'ClaimModel(claimId: $claimId, postId: $postId, status: $status)';
   }
 } 
