@@ -358,10 +358,7 @@ class _MyClaimsScreenState extends State<MyClaimsScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => PostDetailsScreen(
-                              initialPost: post,
-                              isOwnPost: false,
-                            ),
+                            builder: (context) => PostDetailsScreen(post: post, isOwnPost: false),
                           ),
                         ).then((value) {
                           if (value == true) {

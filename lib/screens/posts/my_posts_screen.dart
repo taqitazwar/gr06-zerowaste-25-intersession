@@ -417,8 +417,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) =>
-                                PostDetailsScreen(initialPost: post, isOwnPost: true),
+                            builder: (context) => PostDetailsScreen(post: post, isOwnPost: true),
                           ),
                         ).then((value) {
                           if (value == true) {
@@ -439,38 +438,65 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
   }
 
   Color _getStatusColor(PostModel post) {
-    if (post.isExpired) return Colors.red;
     switch (post.status) {
-      case PostStatus.available:
-        return AppColors.primary;
-      case PostStatus.pending:
-        return Colors.orange;
       case PostStatus.completed:
         return Colors.green;
+      case PostStatus.claimed:
+        return Colors.blue;
+      case PostStatus.rejected:
+        return Colors.red;
+      case PostStatus.cancelled:
+        return Colors.orange;
+      case PostStatus.expired:
+        return Colors.grey;
+      case PostStatus.pending:
+        return Colors.yellow;
+      case PostStatus.available:
+        return Colors.lightGreen;
+      default:
+        return Colors.grey;
     }
   }
 
   IconData _getStatusIcon(PostModel post) {
-    if (post.isExpired) return Icons.timer_off;
     switch (post.status) {
-      case PostStatus.available:
-        return Icons.check_circle;
-      case PostStatus.pending:
-        return Icons.handshake;
       case PostStatus.completed:
-        return Icons.task_alt;
+        return Icons.check_circle;
+      case PostStatus.claimed:
+        return Icons.assignment_turned_in;
+      case PostStatus.rejected:
+        return Icons.cancel;
+      case PostStatus.cancelled:
+        return Icons.remove_circle_outline;
+      case PostStatus.expired:
+        return Icons.hourglass_empty;
+      case PostStatus.pending:
+        return Icons.hourglass_top;
+      case PostStatus.available:
+        return Icons.fastfood;
+      default:
+        return Icons.help_outline;
     }
   }
 
   String _getStatusText(PostModel post) {
-    if (post.isExpired) return 'Expired';
     switch (post.status) {
-      case PostStatus.available:
-        return 'Available';
-      case PostStatus.pending:
-        return 'Claim Pending';
       case PostStatus.completed:
         return 'Completed';
+      case PostStatus.claimed:
+        return 'Claimed';
+      case PostStatus.rejected:
+        return 'Rejected';
+      case PostStatus.cancelled:
+        return 'Cancelled';
+      case PostStatus.expired:
+        return 'Expired';
+      case PostStatus.pending:
+        return 'Pending';
+      case PostStatus.available:
+        return 'Available';
+      default:
+        return 'Unknown';
     }
   }
 }

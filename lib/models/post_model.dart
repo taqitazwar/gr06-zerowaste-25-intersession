@@ -1,13 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum PostStatus {
-  available,   // Initial state - can be claimed
-  pending,     // Someone has claimed it, waiting for creator response
+  available,
   claimed,
-  completed,   // Claim was accepted and completed
+  completed,
   rejected,
   cancelled,
-  expired,
+  expired, // (if used elsewhere)
+  pending,
 }
 
 enum DietaryTag {
@@ -32,11 +32,12 @@ class PostModel {
   final DateTime expiry;
   final GeoPoint location;
   final String address;
-  final String? activeClaim;  // Current active claim ID (if any)
+  final String? claimedBy;
   final PostStatus status;
   final List<DietaryTag> dietaryTags;
   final DateTime timestamp;
   final DateTime? updatedAt;
+  final String? activeClaim;
 
   PostModel({
     required this.postId,
@@ -47,11 +48,12 @@ class PostModel {
     required this.expiry,
     required this.location,
     required this.address,
-    this.activeClaim,
+    this.claimedBy,
     this.status = PostStatus.available,
     this.dietaryTags = const [],
     required this.timestamp,
     this.updatedAt,
+    this.activeClaim,
   });
 
   // Convert PostModel to Map for Firestore
@@ -65,11 +67,12 @@ class PostModel {
       'expiry': Timestamp.fromDate(expiry),
       'location': location,
       'address': address,
-      'activeClaim': activeClaim,
+      'claimedBy': claimedBy,
       'status': status.name,
       'dietaryTags': dietaryTags.map((tag) => tag.name).toList(),
       'timestamp': Timestamp.fromDate(timestamp),
       'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
+      'activeClaim': activeClaim,
     };
   }
 
@@ -86,7 +89,7 @@ class PostModel {
           : DateTime.now(),
       location: map['location'] ?? const GeoPoint(0, 0),
       address: map['address'] ?? '',
-      activeClaim: map['activeClaim'],
+      claimedBy: map['claimedBy'],
       status: PostStatus.values.firstWhere(
         (e) => e.name == (map['status'] ?? 'available'),
         orElse: () => PostStatus.available,
@@ -103,6 +106,7 @@ class PostModel {
       updatedAt: map['updatedAt'] != null 
           ? (map['updatedAt'] as Timestamp).toDate()
           : null,
+      activeClaim: map['activeClaim'],
     );
   }
 
@@ -122,11 +126,12 @@ class PostModel {
     DateTime? expiry,
     GeoPoint? location,
     String? address,
-    String? activeClaim,
+    String? claimedBy,
     PostStatus? status,
     List<DietaryTag>? dietaryTags,
     DateTime? timestamp,
     DateTime? updatedAt,
+    String? activeClaim,
   }) {
     return PostModel(
       postId: postId ?? this.postId,
@@ -137,11 +142,12 @@ class PostModel {
       expiry: expiry ?? this.expiry,
       location: location ?? this.location,
       address: address ?? this.address,
-      activeClaim: activeClaim ?? this.activeClaim,
+      claimedBy: claimedBy ?? this.claimedBy,
       status: status ?? this.status,
       dietaryTags: dietaryTags ?? this.dietaryTags,
       timestamp: timestamp ?? this.timestamp,
       updatedAt: updatedAt ?? this.updatedAt,
+      activeClaim: activeClaim ?? this.activeClaim,
     );
   }
 
@@ -190,4 +196,4 @@ class PostModel {
   String toString() {
     return 'PostModel(postId: $postId, title: $title, description: $description, status: $status)';
   }
-}
+} 

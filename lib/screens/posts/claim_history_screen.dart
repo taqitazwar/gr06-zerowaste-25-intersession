@@ -404,8 +404,7 @@ class _ClaimHistoryScreenState extends State<ClaimHistoryScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (context) => PostDetailsScreen(
-                                initialPost: post,
-                                isOwnPost: false,
+                                post: post,
                               ),
                             ),
                           );

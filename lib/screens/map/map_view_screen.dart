@@ -225,14 +225,14 @@ class _MapViewScreenState extends State<MapViewScreen> {
       ),
       body: _isMapView
           ? GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: initialLatLng,
-                zoom: 12,
-              ),
-              myLocationEnabled: true,
-              myLocationButtonEnabled: true,
-              markers: Set<Marker>.of(_markers.values),
-              onMapCreated: (controller) => _mapController = controller,
+        initialCameraPosition: CameraPosition(
+          target: initialLatLng,
+          zoom: 12,
+        ),
+        myLocationEnabled: true,
+        myLocationButtonEnabled: true,
+        markers: Set<Marker>.of(_markers.values),
+        onMapCreated: (controller) => _mapController = controller,
             )
           : ListView.builder(
               itemCount: _allPosts.length,
@@ -300,7 +300,7 @@ class _MapViewScreenState extends State<MapViewScreen> {
                   ),
                 );
               },
-            ),
+      ),
     );
   }
 
