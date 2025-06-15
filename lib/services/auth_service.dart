@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/models.dart';
+import 'notification_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -22,6 +23,12 @@ class AuthService {
         email: email,
         password: password,
       );
+
+      // Refresh FCM token after successful sign in
+      if (result.user != null) {
+        await NotificationService.refreshToken();
+      }
+
       return result;
     } catch (e) {
       print('Error signing in: $e');
@@ -47,6 +54,8 @@ class AuthService {
       // Create user document in Firestore
       if (result.user != null) {
         await createUserDocument(result.user!, name);
+        // Refresh FCM token after creating user document
+        await NotificationService.refreshToken();
       }
 
       return result;
@@ -63,15 +72,15 @@ class AuthService {
         uid: user.uid,
         name: name,
         email: user.email ?? '',
-        location: const GeoPoint(0, 0), // Will be updated when user sets location
+        location: const GeoPoint(
+          0,
+          0,
+        ), // Will be updated when user sets location
         fcmToken: '', // Will be updated when FCM token is available
         createdAt: DateTime.now(),
       );
 
-      await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .set(userModel.toMap());
+      await _firestore.collection('users').doc(user.uid).set(userModel.toMap());
     } catch (e) {
       print('Error creating user document: $e');
       rethrow;
@@ -106,9 +115,7 @@ class AuthService {
   // Update FCM token
   Future<void> updateFCMToken(String uid, String token) async {
     try {
-      await _firestore.collection('users').doc(uid).update({
-        'fcmToken': token,
-      });
+      await _firestore.collection('users').doc(uid).update({'fcmToken': token});
     } catch (e) {
       print('Error updating FCM token: $e');
       rethrow;
@@ -142,7 +149,7 @@ class AuthService {
       if (user != null) {
         // Delete user document from Firestore
         await _firestore.collection('users').doc(user.uid).delete();
-        
+
         // Delete authentication account
         await user.delete();
       }
@@ -161,4 +168,4 @@ class AuthService {
       rethrow;
     }
   }
-} 
+}
