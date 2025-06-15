@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../auth/sign_in_screen.dart';
 import '../posts/my_posts_screen.dart';
+import '../posts/my_claims_screen.dart';
 import '../posts/claim_history_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -492,6 +493,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   context,
                   MaterialPageRoute(
                     builder: (context) => const MyPostsScreen(),
+                  ),
+                );
+              },
+              contentPadding: EdgeInsets.zero,
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.handshake, color: AppColors.warning),
+              ),
+              title: const Text('My Claims'),
+              subtitle: const Text('Manage your active food claims'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const MyClaimsScreen(),
                   ),
                 );
               },

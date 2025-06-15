@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme.dart';
 import '../../models/post_model.dart';
+import '../../services/claim_service.dart';
 import '../post/add_post_screen.dart';
 import '../post/post_details_screen.dart';
 
@@ -36,7 +37,7 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
     try {
       final QuerySnapshot snapshot = await _firestore
           .collection('posts')
-          .where('status', isEqualTo: PostStatus.available.name)
+          .where('status', whereIn: [PostStatus.available.name, PostStatus.pending.name])
           .where('expiry', isGreaterThan: Timestamp.fromDate(DateTime.now()))
           .orderBy('expiry')
           .orderBy('timestamp', descending: true)
@@ -181,6 +182,8 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
     final formattedDate = DateFormat('MMM d, yyyy').format(post.timestamp);
     final formattedTime = DateFormat('h:mm a').format(post.timestamp);
     final isCurrentUserPost = post.postedBy == _auth.currentUser?.uid;
+    final isPending = post.status == PostStatus.pending;
+    final isAvailable = post.status == PostStatus.available;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -263,37 +266,83 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
                     },
                   ),
                 ),
-                // "Your Post" overlay
-                if (isCurrentUserPost)
-                  Positioned(
-                    top: 12,
-                    right: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
+                // Status overlays
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      // "Your Post" overlay
+                      if (isCurrentUserPost)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
                           ),
-                        ],
-                      ),
-                      child: const Text(
-                        'Your Post',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.2),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Text(
+                            'Your Post',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
+                      // Pending status overlay
+                      if (isPending) ...[
+                        if (isCurrentUserPost) const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.2),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.hourglass_empty,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'Claim Pending',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
+                ),
               ],
             ),
 
@@ -378,8 +427,44 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
                 ),
                 const SizedBox(height: 8),
 
+                // Status info (for pending posts)
+                if (isPending) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.orange[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange[200]!),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.hourglass_empty, color: Colors.orange[700], size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Someone has claimed this food - awaiting response',
+                            style: TextStyle(
+                              color: Colors.orange[700],
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
                 // Expiry info
                 Container(
+                  width: double.infinity,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 8,
@@ -390,16 +475,17 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
                     border: Border.all(color: Colors.orange[200]!),
                   ),
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.schedule, color: Colors.orange[700], size: 16),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Expires in: ${_getExpiryText(post)}',
-                        style: TextStyle(
-                          color: Colors.orange[700],
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Expires in: ${_getExpiryText(post)}',
+                          style: TextStyle(
+                            color: Colors.orange[700],
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     ],
@@ -430,15 +516,18 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: isCurrentUserPost
+                        onPressed: (isCurrentUserPost || isPending)
                             ? null
                             : () {
                                 _claimPost(post);
                               },
-                        icon: const Icon(Icons.check_circle_outline, size: 18),
-                        label: const Text('Claim'),
+                        icon: Icon(
+                          isPending ? Icons.hourglass_empty : Icons.check_circle_outline,
+                          size: 18,
+                        ),
+                        label: Text(isPending ? 'Pending' : 'Claim'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
+                          backgroundColor: isPending ? Colors.orange : AppColors.primary,
                           foregroundColor: Colors.white,
                           disabledBackgroundColor: Colors.grey[300],
                           disabledForegroundColor: Colors.grey[600],
@@ -481,7 +570,7 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => PostDetailsScreen(
-          post: post,
+          initialPost: post,
           isOwnPost: post.postedBy == _auth.currentUser?.uid,
         ),
       ),
@@ -495,29 +584,16 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
 
   void _claimPost(PostModel post) async {
     try {
-      final user = _auth.currentUser;
-      if (user == null) {
-        throw Exception('You must be logged in to claim food');
-      }
-
-      // Update post status
-      await _firestore.collection('posts').doc(post.postId).update({
-        'status': PostStatus.claimed.name,
-        'claimedBy': user.uid,
-        'updatedAt': Timestamp.fromDate(DateTime.now()),
-      });
-
-      // Increment user's claim count
-      await _firestore.collection('users').doc(user.uid).update({
-        'totalClaims': FieldValue.increment(1),
-        'lastActive': Timestamp.fromDate(DateTime.now()),
-      });
+      await ClaimService.createClaim(
+        postId: post.postId,
+        creatorId: post.postedBy,
+      );
 
       // Show success message and refresh posts
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Food claimed successfully!'),
+            content: Text('Food claimed successfully! The poster will be notified.'),
             backgroundColor: AppColors.primary,
           ),
         );
