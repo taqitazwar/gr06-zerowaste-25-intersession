@@ -4,9 +4,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme.dart';
 import '../../models/post_model.dart';
+import '../../models/claim_model.dart';
+import '../../services/claim_service.dart';
 import '../post/add_post_screen.dart';
 import '../post/edit_post_screen.dart';
 import '../post/post_details_screen.dart';
+import '../chat/chat_screen.dart';
 
 class MyPostsScreen extends StatefulWidget {
   const MyPostsScreen({Key? key}) : super(key: key);
@@ -61,22 +64,34 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
   }
 
   Future<void> _handleClaimAction(PostModel post, bool accept) async {
-    try {
-      final newStatus = accept ? PostStatus.completed : PostStatus.rejected;
-
-      await _firestore.collection('posts').doc(post.postId).update({
-        'status': newStatus.name,
-        'updatedAt': Timestamp.fromDate(DateTime.now()),
-      });
-
+    if (post.activeClaim == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            accept ? 'Claim completed successfully!' : 'Claim rejected',
-          ),
-          backgroundColor: accept ? AppColors.primary : Colors.orange,
+        const SnackBar(
+          content: Text('No active claim found'),
+          backgroundColor: AppColors.error,
         ),
       );
+      return;
+    }
+
+    try {
+      if (accept) {
+        await ClaimService.acceptClaim(claimId: post.activeClaim!);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Claim accepted! Food marked as completed.'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+      } else {
+        await ClaimService.rejectClaim(claimId: post.activeClaim!);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Claim rejected. Post is now available again.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
 
       _fetchMyPosts(); // Refresh the list
     } catch (e) {
@@ -86,6 +101,66 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
           backgroundColor: AppColors.error,
         ),
       );
+    }
+  }
+
+  Future<void> _startChatWithClaimer(PostModel post) async {
+    try {
+      // Get the active claim for this post
+      final claim = await ClaimService.getActiveClaimForPost(post.postId);
+      if (claim == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No active claim found for this post'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Create a unique chat ID
+      final List<String> participants = [post.postedBy, claim.claimerId]..sort();
+      final chatId = '${post.postId}_${participants.join('_')}';
+
+      // Create or get chat document
+      final chatRef = _firestore.collection('chats').doc(chatId);
+      final chatDoc = await chatRef.get();
+
+      if (!chatDoc.exists) {
+        // Create new chat
+        await chatRef.set({
+          'participants': participants,
+          'postId': post.postId,
+          'postTitle': post.title,
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastMessageTime': FieldValue.serverTimestamp(),
+          'messages': [],
+        });
+      }
+
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChatScreen(
+              chatId: chatId,
+              postTitle: post.title,
+              otherUserId: claim.claimerId,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to start chat: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
@@ -170,9 +245,8 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
   }
 
   Widget _buildPostCard(PostModel post) {
-    final bool isClaimed = post.status == PostStatus.claimed;
+    final bool isPending = post.status == PostStatus.pending;
     final bool isCompleted = post.status == PostStatus.completed;
-    final bool isRejected = post.status == PostStatus.rejected;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -282,38 +356,59 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                 ),
 
                 // Claim Management Buttons
-                if (isClaimed) ...[
+                if (isPending) ...[
                   const SizedBox(height: 16),
-                  const Divider(),
-                  const SizedBox(height: 16),
-                  Row(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => _handleClaimAction(post, false),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.red,
-                            side: const BorderSide(color: Colors.red),
-                          ),
-                          child: const Text('Reject Claim'),
+                      // Message button (full width)
+                      ElevatedButton.icon(
+                        onPressed: () => _startChatWithClaimer(post),
+                        icon: const Icon(Icons.message_outlined, size: 18),
+                        label: const Text('Message Claimer'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () => _handleClaimAction(post, true),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
+                      const SizedBox(height: 12),
+                      // Accept/Reject buttons (side by side)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _handleClaimAction(post, false),
+                              icon: const Icon(Icons.close, size: 18),
+                              label: const Text('Reject'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red,
+                                side: const BorderSide(color: Colors.red),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                            ),
                           ),
-                          child: const Text('Accept & Complete'),
-                        ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () => _handleClaimAction(post, true),
+                              icon: const Icon(Icons.check, size: 18),
+                              label: const Text('Accept'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ],
 
                 // View Details Button
-                if (!isClaimed) ...[
+                if (!isPending) ...[
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
@@ -323,7 +418,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (context) =>
-                                PostDetailsScreen(post: post, isOwnPost: true),
+                                PostDetailsScreen(initialPost: post, isOwnPost: true),
                           ),
                         ).then((value) {
                           if (value == true) {
@@ -348,16 +443,10 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
     switch (post.status) {
       case PostStatus.available:
         return AppColors.primary;
-      case PostStatus.claimed:
+      case PostStatus.pending:
         return Colors.orange;
       case PostStatus.completed:
         return Colors.green;
-      case PostStatus.rejected:
-        return Colors.red;
-      case PostStatus.cancelled:
-        return Colors.grey;
-      case PostStatus.expired:
-        return Colors.red;
     }
   }
 
@@ -366,16 +455,10 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
     switch (post.status) {
       case PostStatus.available:
         return Icons.check_circle;
-      case PostStatus.claimed:
+      case PostStatus.pending:
         return Icons.handshake;
       case PostStatus.completed:
         return Icons.task_alt;
-      case PostStatus.rejected:
-        return Icons.cancel;
-      case PostStatus.cancelled:
-        return Icons.block;
-      case PostStatus.expired:
-        return Icons.timer_off;
     }
   }
 
@@ -384,16 +467,10 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
     switch (post.status) {
       case PostStatus.available:
         return 'Available';
-      case PostStatus.claimed:
-        return 'Claimed';
+      case PostStatus.pending:
+        return 'Claim Pending';
       case PostStatus.completed:
         return 'Completed';
-      case PostStatus.rejected:
-        return 'Rejected';
-      case PostStatus.cancelled:
-        return 'Cancelled';
-      case PostStatus.expired:
-        return 'Expired';
     }
   }
 }
