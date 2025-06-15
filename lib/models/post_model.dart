@@ -1,12 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum PostStatus {
-  available,
+  available,   // Initial state - can be claimed
+  pending,     // Someone has claimed it, waiting for creator response
   claimed,
-  completed,
+  completed,   // Claim was accepted and completed
   rejected,
   cancelled,
-  expired, // (if used elsewhere)
+  expired,
 }
 
 enum DietaryTag {
@@ -31,7 +32,7 @@ class PostModel {
   final DateTime expiry;
   final GeoPoint location;
   final String address;
-  final String? claimedBy;
+  final String? activeClaim;  // Current active claim ID (if any)
   final PostStatus status;
   final List<DietaryTag> dietaryTags;
   final DateTime timestamp;
@@ -46,7 +47,7 @@ class PostModel {
     required this.expiry,
     required this.location,
     required this.address,
-    this.claimedBy,
+    this.activeClaim,
     this.status = PostStatus.available,
     this.dietaryTags = const [],
     required this.timestamp,
@@ -64,7 +65,7 @@ class PostModel {
       'expiry': Timestamp.fromDate(expiry),
       'location': location,
       'address': address,
-      'claimedBy': claimedBy,
+      'activeClaim': activeClaim,
       'status': status.name,
       'dietaryTags': dietaryTags.map((tag) => tag.name).toList(),
       'timestamp': Timestamp.fromDate(timestamp),
@@ -85,7 +86,7 @@ class PostModel {
           : DateTime.now(),
       location: map['location'] ?? const GeoPoint(0, 0),
       address: map['address'] ?? '',
-      claimedBy: map['claimedBy'],
+      activeClaim: map['activeClaim'],
       status: PostStatus.values.firstWhere(
         (e) => e.name == (map['status'] ?? 'available'),
         orElse: () => PostStatus.available,
@@ -121,7 +122,7 @@ class PostModel {
     DateTime? expiry,
     GeoPoint? location,
     String? address,
-    String? claimedBy,
+    String? activeClaim,
     PostStatus? status,
     List<DietaryTag>? dietaryTags,
     DateTime? timestamp,
@@ -136,7 +137,7 @@ class PostModel {
       expiry: expiry ?? this.expiry,
       location: location ?? this.location,
       address: address ?? this.address,
-      claimedBy: claimedBy ?? this.claimedBy,
+      activeClaim: activeClaim ?? this.activeClaim,
       status: status ?? this.status,
       dietaryTags: dietaryTags ?? this.dietaryTags,
       timestamp: timestamp ?? this.timestamp,
@@ -189,4 +190,4 @@ class PostModel {
   String toString() {
     return 'PostModel(postId: $postId, title: $title, description: $description, status: $status)';
   }
-} 
+}
