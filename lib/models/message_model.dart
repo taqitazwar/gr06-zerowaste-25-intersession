@@ -23,7 +23,7 @@ class ChatMessage {
     return ChatMessage(
       sender: map['sender'] ?? '',
       content: map['content'] ?? '',
-      timestamp: map['timestamp'] != null 
+      timestamp: map['timestamp'] != null
           ? (map['timestamp'] as Timestamp).toDate()
           : DateTime.now(),
     );
@@ -69,13 +69,17 @@ class MessageModel {
       postId: map['postId'] ?? '',
       user1: map['user1'] ?? '',
       user2: map['user2'] ?? '',
-      messages: (map['messages'] as List<dynamic>?)
-          ?.map((msgMap) => ChatMessage.fromMap(msgMap as Map<String, dynamic>))
-          .toList() ?? [],
-      createdAt: map['createdAt'] != null 
+      messages:
+          (map['messages'] as List<dynamic>?)
+              ?.map(
+                (msgMap) => ChatMessage.fromMap(msgMap as Map<String, dynamic>),
+              )
+              .toList() ??
+          [],
+      createdAt: map['createdAt'] != null
           ? (map['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
-      lastUpdated: map['lastUpdated'] != null 
+      lastUpdated: map['lastUpdated'] != null
           ? (map['lastUpdated'] as Timestamp).toDate()
           : DateTime.now(),
     );
@@ -111,10 +115,7 @@ class MessageModel {
   // Add a new message to the chat
   MessageModel addMessage(ChatMessage message) {
     final updatedMessages = List<ChatMessage>.from(messages)..add(message);
-    return copyWith(
-      messages: updatedMessages,
-      lastUpdated: DateTime.now(),
-    );
+    return copyWith(messages: updatedMessages, lastUpdated: DateTime.now());
   }
 
   // Get the last message
@@ -124,4 +125,4 @@ class MessageModel {
   String toString() {
     return 'MessageModel(chatId: $chatId, postId: $postId, messageCount: ${messages.length})';
   }
-} 
+}
