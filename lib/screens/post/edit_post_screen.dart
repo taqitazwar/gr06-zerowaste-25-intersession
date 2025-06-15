@@ -28,7 +28,6 @@ class _EditPostScreenState extends State<EditPostScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _locationController = TextEditingController();
-  final _locationFocusNode = FocusNode();
   final _imagePicker = ImagePicker();
   final _authService = AuthService();
   final _locationFocusNode = FocusNode();

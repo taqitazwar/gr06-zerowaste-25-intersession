@@ -1,6 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum PostStatus { available, claimed, expired }
+enum PostStatus {
+  available,
+  claimed,
+  completed,
+  rejected,
+  cancelled,
+  expired, // (if used elsewhere)
+}
 
 enum DietaryTag {
   vegetarian,
