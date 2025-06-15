@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme.dart';
 import '../../models/message_model.dart';
+import '../../models/user_model.dart';
 
 class ChatScreen extends StatefulWidget {
   final String chatId;
@@ -51,10 +52,16 @@ class _ChatScreenState extends State<ChatScreen> {
           .doc(widget.otherUserId)
           .get();
 
-      if (mounted) {
+      if (mounted && userDoc.exists) {
+        final userData = UserModel.fromDocument(userDoc);
         setState(() {
-          _otherUserName = userDoc.data()?['displayName'] ?? 'Unknown User';
-          _otherUserImage = userDoc.data()?['profileImageUrl'];
+          _otherUserName = userData.name;
+          _otherUserImage = userData.profileImageUrl;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _otherUserName = 'Unknown User';
           _isLoading = false;
         });
       }
@@ -148,7 +155,7 @@ class _ChatScreenState extends State<ChatScreen> {
               backgroundImage: _otherUserImage != null
                   ? NetworkImage(_otherUserImage!)
                   : null,
-              child: _otherUserImage == null
+              child: _otherUserImage == null && _otherUserName.isNotEmpty
                   ? Text(
                       _otherUserName[0].toUpperCase(),
                       style: const TextStyle(
@@ -156,7 +163,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     )
-                  : null,
+                  : const Icon(Icons.person, color: AppColors.primary),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -195,16 +202,22 @@ class _ChatScreenState extends State<ChatScreen> {
                         .orderBy('timestamp', descending: true)
                         .snapshots(),
                     builder: (context, snapshot) {
-                      if (snapshot.hasError) {
-                        return Center(child: Text('Error: ${snapshot.error}'));
+                      // Handle connection state
+                      if (snapshot.connectionState == ConnectionState.waiting &&
+                          !snapshot.hasData) {
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              AppColors.primary,
+                            ),
+                          ),
+                        );
                       }
 
-                      if (!snapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
+                      // Get messages, defaulting to empty list if null
+                      final messages = snapshot.data?.docs ?? [];
 
-                      final messages = snapshot.data!.docs;
-
+                      // Show empty state if no messages
                       if (messages.isEmpty) {
                         return Center(
                           child: Column(
@@ -233,22 +246,33 @@ class _ChatScreenState extends State<ChatScreen> {
                         );
                       }
 
+                      // Show messages
                       return ListView.builder(
                         controller: _scrollController,
                         reverse: true,
                         padding: const EdgeInsets.all(16),
                         itemCount: messages.length,
                         itemBuilder: (context, index) {
-                          final message =
-                              messages[index].data() as Map<String, dynamic>;
+                          if (index >= messages.length)
+                            return const SizedBox.shrink();
+
+                          final messageData =
+                              messages[index].data() as Map<String, dynamic>?;
+                          if (messageData == null)
+                            return const SizedBox.shrink();
+
                           final isMe =
-                              message['senderId'] == _auth.currentUser?.uid;
-                          final timestamp = (message['timestamp'] as Timestamp)
-                              .toDate();
-                          final isRead = message['isRead'] ?? false;
+                              messageData['senderId'] == _auth.currentUser?.uid;
+                          final timestamp =
+                              (messageData['timestamp'] as Timestamp?)
+                                  ?.toDate() ??
+                              DateTime.now();
+                          final isRead = messageData['isRead'] ?? false;
+                          final content =
+                              messageData['content'] as String? ?? '';
 
                           return _buildMessageBubble(
-                            message: message['content'],
+                            message: content,
                             isMe: isMe,
                             timestamp: timestamp,
                             isRead: isRead,
@@ -284,7 +308,7 @@ class _ChatScreenState extends State<ChatScreen> {
               backgroundImage: _otherUserImage != null
                   ? NetworkImage(_otherUserImage!)
                   : null,
-              child: _otherUserImage == null
+              child: _otherUserImage == null && _otherUserName.isNotEmpty
                   ? Text(
                       _otherUserName[0].toUpperCase(),
                       style: const TextStyle(
@@ -292,7 +316,11 @@ class _ChatScreenState extends State<ChatScreen> {
                         fontSize: 12,
                       ),
                     )
-                  : null,
+                  : const Icon(
+                      Icons.person,
+                      size: 12,
+                      color: AppColors.primary,
+                    ),
             ),
             const SizedBox(width: 8),
           ],
