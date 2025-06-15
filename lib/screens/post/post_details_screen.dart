@@ -2,20 +2,54 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme.dart';
 import '../../models/post_model.dart';
+import '../../models/claim_model.dart';
 import 'edit_post_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../chat/chat_screen.dart';
+import '../../services/claim_service.dart';
 
-class PostDetailsScreen extends StatelessWidget {
-  final PostModel post;
+class PostDetailsScreen extends StatefulWidget {
+  final PostModel initialPost;
   final bool isOwnPost;
 
   const PostDetailsScreen({
     super.key,
-    required this.post,
+    required this.initialPost,
     this.isOwnPost = false,
   });
+
+  @override
+  State<PostDetailsScreen> createState() => _PostDetailsScreenState();
+}
+
+class _PostDetailsScreenState extends State<PostDetailsScreen> {
+  late PostModel post;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    post = widget.initialPost;
+  }
+
+  Future<void> _refreshPost() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('posts')
+          .doc(post.postId)
+          .get();
+      
+      if (doc.exists && mounted) {
+        setState(() {
+          post = PostModel.fromDocument(doc);
+        });
+      }
+    } catch (e) {
+      // Handle error silently or show a snackbar if needed
+      print('Error refreshing post: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +128,7 @@ class PostDetailsScreen extends StatelessWidget {
                     ),
             ),
             actions: [
-              if (isOwnPost)
+              if (widget.isOwnPost)
                 IconButton(
                   onPressed: () async {
                     final result = await Navigator.push(
@@ -155,7 +189,7 @@ class PostDetailsScreen extends StatelessWidget {
                           ],
                         ),
                       ),
-                      if (isOwnPost) ...[
+                      if (widget.isOwnPost) ...[
                         const SizedBox(width: 12),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -244,8 +278,18 @@ class PostDetailsScreen extends StatelessWidget {
 
                   const SizedBox(height: 32),
 
+                  // Loading indicator
+                  if (_isLoading) ...[
+                    const Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+
                   // Action Buttons
-                  if (!isOwnPost && isAvailable) ...[
+                  if (!widget.isOwnPost && isAvailable && !_isLoading) ...[
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
@@ -284,8 +328,75 @@ class PostDetailsScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                  ] else if (isOwnPost &&
-                      post.status == PostStatus.claimed) ...[
+                  ] else if (!widget.isOwnPost && post.status == PostStatus.pending && !_isLoading) ...[
+                    // Pending claim info for non-owners
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.orange[200]!),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.hourglass_empty,
+                                color: Colors.orange[700],
+                                size: 24,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Claim Pending',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.orange[700],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Someone has already claimed this food and is waiting for the poster\'s response.',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.orange[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          _showContactDialog(context);
+                        },
+                        icon: const Icon(Icons.message_outlined),
+                        label: const Text('Contact Poster'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: AppColors.primary),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ] else if (widget.isOwnPost &&
+                      post.status == PostStatus.pending && !_isLoading) ...[
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
@@ -463,16 +574,10 @@ class PostDetailsScreen extends StatelessWidget {
     switch (post.status) {
       case PostStatus.available:
         return AppColors.primary;
-      case PostStatus.claimed:
+      case PostStatus.pending:
         return Colors.orange;
       case PostStatus.completed:
         return Colors.green;
-      case PostStatus.rejected:
-        return Colors.red;
-      case PostStatus.cancelled:
-        return Colors.grey;
-      case PostStatus.expired:
-        return Colors.red;
     }
   }
 
@@ -483,16 +588,10 @@ class PostDetailsScreen extends StatelessWidget {
     switch (post.status) {
       case PostStatus.available:
         return Icons.check_circle;
-      case PostStatus.claimed:
+      case PostStatus.pending:
         return Icons.handshake;
       case PostStatus.completed:
         return Icons.task_alt;
-      case PostStatus.rejected:
-        return Icons.cancel;
-      case PostStatus.cancelled:
-        return Icons.block;
-      case PostStatus.expired:
-        return Icons.timer_off;
     }
   }
 
@@ -503,16 +602,10 @@ class PostDetailsScreen extends StatelessWidget {
     switch (post.status) {
       case PostStatus.available:
         return 'Available';
-      case PostStatus.claimed:
-        return 'Claimed';
+      case PostStatus.pending:
+        return 'Claim Pending';
       case PostStatus.completed:
         return 'Completed';
-      case PostStatus.rejected:
-        return 'Rejected';
-      case PostStatus.cancelled:
-        return 'Cancelled';
-      case PostStatus.expired:
-        return 'Expired';
     }
   }
 
@@ -563,7 +656,7 @@ class PostDetailsScreen extends StatelessWidget {
       builder: (context) => AlertDialog(
         title: const Text('Claim Food'),
         content: const Text(
-          'Are you sure you want to claim this food? The poster will be notified and you can arrange pickup.',
+          'Are you sure you want to claim this food? The poster will be notified and can accept or reject your claim.',
         ),
         actions: [
           TextButton(
@@ -573,43 +666,37 @@ class PostDetailsScreen extends StatelessWidget {
           ElevatedButton(
             onPressed: () async {
               try {
-                final user = FirebaseAuth.instance.currentUser;
-                if (user == null) {
-                  throw Exception('You must be logged in to claim food');
-                }
+                setState(() {
+                  _isLoading = true;
+                });
 
-                await FirebaseFirestore.instance
-                    .collection('posts')
-                    .doc(post.postId)
-                    .update({
-                      'status': PostStatus.claimed.name,
-                      'claimedBy': user.uid,
-                      'updatedAt': Timestamp.fromDate(DateTime.now()),
-                    });
-
-                // Increment user's claim count
-                await FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(user.uid)
-                    .update({
-                      'totalClaims': FieldValue.increment(1),
-                      'lastActive': Timestamp.fromDate(DateTime.now()),
-                    });
+                await ClaimService.createClaim(
+                  postId: post.postId,
+                  creatorId: post.postedBy,
+                );
 
                 if (context.mounted) {
                   Navigator.pop(context); // Close dialog
-                  Navigator.pop(
-                    context,
-                    true,
-                  ); // Return to previous screen with refresh flag
+                  
+                  // Refresh the post data to show updated status
+                  await _refreshPost();
+                  
+                  setState(() {
+                    _isLoading = false;
+                  });
+                  
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Food claimed successfully!'),
+                      content: Text('Food claimed successfully! The poster will be notified.'),
                       backgroundColor: AppColors.primary,
                     ),
                   );
                 }
               } catch (e) {
+                setState(() {
+                  _isLoading = false;
+                });
+                
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -682,118 +769,137 @@ class PostDetailsScreen extends StatelessWidget {
   }
 
   void _showClaimManagementDialog(BuildContext context) async {
-    final claimerSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(post.claimedBy)
-        .get();
+    if (post.activeClaim == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No active claim found'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
 
-    final claimerName = claimerSnapshot.data()?['name'] ?? 'Unknown User';
+    try {
+      // Get the claim details
+      final claimDoc = await FirebaseFirestore.instance
+          .collection('claims')
+          .doc(post.activeClaim!)
+          .get();
 
-    if (!context.mounted) return;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Manage Claim'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Claimed by: $claimerName'),
-            const SizedBox(height: 8),
-            Text(
-              'Claimed on: ${DateFormat('MMM d, yyyy \'at\' h:mm a').format(post.updatedAt ?? post.timestamp)}',
+      if (!claimDoc.exists) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Claim not found'),
+              backgroundColor: AppColors.error,
             ),
-            const SizedBox(height: 16),
-            const Text('What would you like to do with this claim?'),
+          );
+        }
+        return;
+      }
+
+      final claim = ClaimModel.fromDocument(claimDoc);
+      
+      // Get claimer details
+      final claimerSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(claim.claimerId)
+          .get();
+
+      final claimerName = claimerSnapshot.data()?['name'] ?? 'Unknown User';
+
+      if (!context.mounted) return;
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Manage Claim'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Claimed by: $claimerName'),
+              const SizedBox(height: 8),
+              Text(
+                'Claimed on: ${DateFormat('MMM d, yyyy \'at\' h:mm a').format(claim.timestamp)}',
+              ),
+              const SizedBox(height: 16),
+              const Text('What would you like to do with this claim?'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                try {
+                  await ClaimService.rejectClaim(claimId: claim.claimId);
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    Navigator.pop(context, true); // Refresh parent screen
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Claim rejected. Post is now available again.'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to reject claim: ${e.toString()}'),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Reject', style: TextStyle(color: Colors.red)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  await ClaimService.acceptClaim(claimId: claim.claimId);
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    Navigator.pop(context, true); // Refresh parent screen
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Claim accepted! Food marked as completed.'),
+                        backgroundColor: AppColors.primary,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to accept claim: ${e.toString()}'),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Accept'),
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading claim details: ${e.toString()}'),
+            backgroundColor: AppColors.error,
           ),
-          TextButton(
-            onPressed: () async {
-              try {
-                await FirebaseFirestore.instance
-                    .collection('posts')
-                    .doc(post.postId)
-                    .update({
-                      'status': PostStatus.rejected.name,
-                      'updatedAt': Timestamp.fromDate(DateTime.now()),
-                    });
-
-                if (context.mounted) {
-                  Navigator.pop(context); // Close dialog
-                  Navigator.pop(
-                    context,
-                    true,
-                  ); // Return to previous screen with refresh flag
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Claim rejected successfully'),
-                      backgroundColor: Colors.orange,
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to reject claim: ${e.toString()}'),
-                      backgroundColor: AppColors.error,
-                    ),
-                  );
-                }
-              }
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Reject Claim'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                await FirebaseFirestore.instance
-                    .collection('posts')
-                    .doc(post.postId)
-                    .update({
-                      'status': PostStatus.completed.name,
-                      'updatedAt': Timestamp.fromDate(DateTime.now()),
-                    });
-
-                if (context.mounted) {
-                  Navigator.pop(context); // Close dialog
-                  Navigator.pop(
-                    context,
-                    true,
-                  ); // Return to previous screen with refresh flag
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Claim completed successfully!'),
-                      backgroundColor: AppColors.primary,
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Failed to complete claim: ${e.toString()}',
-                      ),
-                      backgroundColor: AppColors.error,
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text('Complete Handover'),
-          ),
-        ],
-      ),
-    );
+        );
+      }
+    }
   }
 }
