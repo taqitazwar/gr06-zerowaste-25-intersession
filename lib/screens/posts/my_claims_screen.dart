@@ -4,31 +4,30 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme.dart';
 import '../../models/post_model.dart';
-import '../post/add_post_screen.dart';
-import '../post/edit_post_screen.dart';
 import '../post/post_details_screen.dart';
+import '../chat/chat_screen.dart';
 
-class MyPostsScreen extends StatefulWidget {
-  const MyPostsScreen({Key? key}) : super(key: key);
+class MyClaimsScreen extends StatefulWidget {
+  const MyClaimsScreen({Key? key}) : super(key: key);
 
   @override
-  State<MyPostsScreen> createState() => _MyPostsScreenState();
+  State<MyClaimsScreen> createState() => _MyClaimsScreenState();
 }
 
-class _MyPostsScreenState extends State<MyPostsScreen> {
+class _MyClaimsScreenState extends State<MyClaimsScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  List<PostModel> _posts = [];
+  List<PostModel> _claims = [];
   bool _isLoading = true;
   String _errorMessage = '';
 
   @override
   void initState() {
     super.initState();
-    _fetchMyPosts();
+    _fetchMyClaims();
   }
 
-  Future<void> _fetchMyPosts() async {
+  Future<void> _fetchMyClaims() async {
     setState(() {
       _isLoading = true;
       _errorMessage = '';
@@ -40,52 +39,68 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
 
       final QuerySnapshot snapshot = await _firestore
           .collection('posts')
-          .where('postedBy', isEqualTo: user.uid)
-          .orderBy('timestamp', descending: true)
+          .where('claimedBy', isEqualTo: user.uid)
+          .orderBy('updatedAt', descending: true)
           .get();
 
-      final List<PostModel> posts = snapshot.docs
+      final List<PostModel> claims = snapshot.docs
           .map((doc) => PostModel.fromDocument(doc))
           .toList();
 
       setState(() {
-        _posts = posts;
+        _claims = claims;
         _isLoading = false;
       });
     } catch (e) {
       setState(() {
-        _errorMessage = 'Error fetching posts: ${e.toString()}';
+        _errorMessage = 'Error fetching claims: ${e.toString()}';
         _isLoading = false;
       });
     }
   }
 
-  Future<void> _handleClaimAction(PostModel post, bool accept) async {
+  Future<void> _startChat(PostModel post) async {
     try {
-      final newStatus = accept ? PostStatus.completed : PostStatus.rejected;
+      // Create a unique chat ID using post ID and user IDs
+      final chatId = '${post.postId}_${post.postedBy}_${post.claimedBy}';
 
-      await _firestore.collection('posts').doc(post.postId).update({
-        'status': newStatus.name,
-        'updatedAt': Timestamp.fromDate(DateTime.now()),
-      });
+      // Check if chat already exists
+      final chatDoc = await _firestore.collection('chats').doc(chatId).get();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            accept ? 'Claim completed successfully!' : 'Claim rejected',
+      if (!chatDoc.exists) {
+        // Create new chat
+        await _firestore.collection('chats').doc(chatId).set({
+          'postId': post.postId,
+          'postTitle': post.title,
+          'participants': [post.postedBy, post.claimedBy],
+          'lastMessage': null,
+          'lastMessageTime': Timestamp.now(),
+          'createdAt': Timestamp.now(),
+        });
+      }
+
+      if (mounted) {
+        // Navigate to chat screen (you'll need to create this)
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChatScreen(
+              chatId: chatId,
+              postTitle: post.title,
+              otherUserId: post.postedBy,
+            ),
           ),
-          backgroundColor: accept ? AppColors.primary : Colors.orange,
-        ),
-      );
-
-      _fetchMyPosts(); // Refresh the list
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to update claim: ${e.toString()}'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to start chat: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
@@ -93,10 +108,13 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Posts'),
+        title: const Text('My Claims'),
         backgroundColor: AppColors.primary,
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _fetchMyPosts),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _fetchMyClaims,
+          ),
         ],
       ),
       body: _buildBody(),
@@ -126,7 +144,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _fetchMyPosts,
+              onPressed: _fetchMyClaims,
               child: const Text('Try Again'),
             ),
           ],
@@ -134,20 +152,24 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
       );
     }
 
-    if (_posts.isEmpty) {
+    if (_claims.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.no_food, color: AppColors.secondary, size: 80),
+            const Icon(
+              Icons.handshake_outlined,
+              color: AppColors.secondary,
+              size: 80,
+            ),
             const SizedBox(height: 16),
             const Text(
-              'No posts yet',
+              'No claims yet',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             const Text(
-              'Start sharing food with your community!',
+              'Start claiming food to help reduce waste!',
               style: TextStyle(color: Colors.grey),
             ),
           ],
@@ -156,23 +178,23 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
     }
 
     return RefreshIndicator(
-      onRefresh: _fetchMyPosts,
+      onRefresh: _fetchMyClaims,
       color: AppColors.primary,
       child: ListView.builder(
-        itemCount: _posts.length,
+        itemCount: _claims.length,
         padding: const EdgeInsets.all(16),
         itemBuilder: (context, index) {
-          final post = _posts[index];
-          return _buildPostCard(post);
+          final claim = _claims[index];
+          return _buildClaimCard(claim);
         },
       ),
     );
   }
 
-  Widget _buildPostCard(PostModel post) {
-    final bool isClaimed = post.status == PostStatus.claimed;
-    final bool isCompleted = post.status == PostStatus.completed;
-    final bool isRejected = post.status == PostStatus.rejected;
+  Widget _buildClaimCard(PostModel claim) {
+    final bool isPending = claim.status == PostStatus.claimed;
+    final bool isCompleted = claim.status == PostStatus.completed;
+    final bool isRejected = claim.status == PostStatus.rejected;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -182,16 +204,29 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Image
-          if (post.imageUrl.isNotEmpty)
+          if (claim.imageUrl.isNotEmpty)
             ClipRRect(
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(12),
               ),
               child: Image.network(
-                post.imageUrl,
+                claim.imageUrl,
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    height: 200,
+                    color: Colors.grey[200],
+                    child: const Center(
+                      child: Icon(
+                        Icons.image_not_supported,
+                        size: 40,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
 
@@ -209,20 +244,20 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: _getStatusColor(post),
+                        color: _getStatusColor(claim),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            _getStatusIcon(post),
+                            _getStatusIcon(claim),
                             color: Colors.white,
                             size: 16,
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            _getStatusText(post),
+                            _getStatusText(claim),
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
@@ -239,7 +274,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
 
                 // Title
                 Text(
-                  post.title,
+                  claim.title,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -250,7 +285,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
 
                 // Description
                 Text(
-                  post.description,
+                  claim.description,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: Colors.grey[600]),
@@ -264,15 +299,21 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                     Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
                     const SizedBox(width: 4),
                     Text(
-                      DateFormat('MMM d, yyyy').format(post.timestamp),
+                      'Claimed: ${DateFormat('MMM d, yyyy').format(claim.updatedAt ?? claim.timestamp)}',
                       style: TextStyle(color: Colors.grey[600], fontSize: 14),
                     ),
-                    const SizedBox(width: 16),
+                  ],
+                ),
+
+                const SizedBox(height: 8),
+
+                Row(
+                  children: [
                     Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        post.address,
+                        claim.address,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(color: Colors.grey[600], fontSize: 14),
@@ -281,60 +322,87 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                   ],
                 ),
 
-                // Claim Management Buttons
-                if (isClaimed) ...[
+                // Status message
+                if (isCompleted || isRejected) ...[
                   const SizedBox(height: 16),
-                  const Divider(),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => _handleClaimAction(post, false),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.red,
-                            side: const BorderSide(color: Colors.red),
-                          ),
-                          child: const Text('Reject Claim'),
-                        ),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isCompleted ? Colors.green[50] : Colors.red[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isCompleted
+                            ? Colors.green[200]!
+                            : Colors.red[200]!,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () => _handleClaimAction(post, true),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                          ),
-                          child: const Text('Accept & Complete'),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isCompleted ? Icons.check_circle : Icons.cancel,
+                          color: isCompleted ? Colors.green : Colors.red,
+                          size: 20,
                         ),
-                      ),
-                    ],
-                  ),
-                ],
-
-                // View Details Button
-                if (!isClaimed) ...[
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                PostDetailsScreen(post: post, isOwnPost: true),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            isCompleted
+                                ? 'Claim was accepted and completed'
+                                : 'Claim was rejected by the donor',
+                            style: TextStyle(
+                              color: isCompleted
+                                  ? Colors.green[700]
+                                  : Colors.red[700],
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                        ).then((value) {
-                          if (value == true) {
-                            _fetchMyPosts();
-                          }
-                        });
-                      },
-                      child: const Text('View Details'),
+                        ),
+                      ],
                     ),
                   ),
                 ],
+
+                // Action Buttons
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => PostDetailsScreen(
+                                post: claim,
+                                isOwnPost: false,
+                              ),
+                            ),
+                          ).then((value) {
+                            if (value == true) {
+                              _fetchMyClaims();
+                            }
+                          });
+                        },
+                        icon: const Icon(Icons.visibility_outlined),
+                        label: const Text('View Details'),
+                      ),
+                    ),
+                    if (isCompleted) ...[
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _startChat(claim),
+                          icon: const Icon(Icons.message_outlined),
+                          label: const Text('Message'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
           ),
@@ -385,7 +453,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
       case PostStatus.available:
         return 'Available';
       case PostStatus.claimed:
-        return 'Claimed';
+        return 'Pending';
       case PostStatus.completed:
         return 'Completed';
       case PostStatus.rejected:

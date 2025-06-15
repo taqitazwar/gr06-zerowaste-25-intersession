@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../auth/sign_in_screen.dart';
 import '../posts/my_posts_screen.dart';
+import '../posts/claim_history_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -19,7 +20,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _authService = AuthService();
   final _nameController = TextEditingController();
   final _imagePicker = ImagePicker();
-  
+
   UserModel? _userModel;
   bool _isLoading = true;
   bool _isEditingName = false;
@@ -56,18 +57,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     setState(() => _isLoading = true);
-    
+
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         await user.updateDisplayName(_nameController.text.trim());
-        
+
         // Update in Firestore
-        await _authService.updateUserProfile(
-          user.uid, 
-          {'name': _nameController.text.trim()}
-        );
-        
+        await _authService.updateUserProfile(user.uid, {
+          'name': _nameController.text.trim(),
+        });
+
         await _loadUserData();
         setState(() => _isEditingName = false);
         _showSnackBar('Name updated successfully!');
@@ -106,10 +106,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final downloadUrl = await storageRef.getDownloadURL();
 
       // Update in Firestore
-      await _authService.updateUserProfile(
-        user.uid, 
-        {'profileImageUrl': downloadUrl}
-      );
+      await _authService.updateUserProfile(user.uid, {
+        'profileImageUrl': downloadUrl,
+      });
 
       await _loadUserData();
       _showSnackBar('Profile image updated successfully!');
@@ -122,7 +121,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _removeProfileImage() async {
     setState(() => _isUploadingImage = true);
-    
+
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
@@ -137,10 +136,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
 
       // Update in Firestore
-      await _authService.updateUserProfile(
-        user.uid, 
-        {'profileImageUrl': null}
-      );
+      await _authService.updateUserProfile(user.uid, {'profileImageUrl': null});
 
       await _loadUserData();
       _showSnackBar('Profile image removed successfully!');
@@ -198,27 +194,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             // Profile Image Section
             _buildProfileImageSection(),
-            
+
             const SizedBox(height: 32),
-            
+
             // User Info Section
             _buildUserInfoSection(),
-            
+
             const SizedBox(height: 32),
-            
+
             // Stats Section
             _buildStatsSection(),
-            
+
             const SizedBox(height: 32),
-            
+
             // Manage Posts Section
             _buildManagePostsSection(),
-            
+
             const SizedBox(height: 32),
-            
+
             // Settings Section
             _buildSettingsSection(),
-            
+
             const SizedBox(height: 40),
           ],
         ),
@@ -254,7 +250,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   radius: 60,
                   backgroundColor: Colors.black54,
                   child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.onPrimary),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      AppColors.onPrimary,
+                    ),
                   ),
                 ),
               ),
@@ -284,16 +282,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SizedBox(height: 16),
         Text(
           _userModel?.name ?? 'User',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 4),
         Text(
           _userModel?.email ?? '',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: AppColors.onSurfaceVariant,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: AppColors.onSurfaceVariant),
         ),
       ],
     );
@@ -316,7 +314,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 IconButton(
-                  onPressed: () => setState(() => _isEditingName = !_isEditingName),
+                  onPressed: () =>
+                      setState(() => _isEditingName = !_isEditingName),
                   icon: Icon(
                     _isEditingName ? Icons.close : Icons.edit,
                     color: AppColors.primary,
@@ -355,13 +354,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ] else ...[
               ListTile(
-                leading: const Icon(Icons.person_outline, color: AppColors.primary),
+                leading: const Icon(
+                  Icons.person_outline,
+                  color: AppColors.primary,
+                ),
                 title: const Text('Full Name'),
                 subtitle: Text(_userModel?.name ?? 'Not set'),
                 contentPadding: EdgeInsets.zero,
               ),
               ListTile(
-                leading: const Icon(Icons.email_outlined, color: AppColors.primary),
+                leading: const Icon(
+                  Icons.email_outlined,
+                  color: AppColors.primary,
+                ),
                 title: const Text('Email'),
                 subtitle: Text(_userModel?.email ?? 'Not set'),
                 contentPadding: EdgeInsets.zero,
@@ -382,9 +387,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Text(
               'Your Stats',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 16),
             Row(
@@ -447,9 +452,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         Text(
           label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppColors.onSurfaceVariant,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.onSurfaceVariant),
           textAlign: TextAlign.center,
         ),
       ],
@@ -465,9 +470,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Text(
               'Manage Posts',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 16),
             ListTile(
@@ -506,8 +511,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               subtitle: const Text('View food you\'ve claimed from others'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
-                // TODO: Navigate to claim history
-                _showSnackBar('Claim history coming soon!');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ClaimHistoryScreen(),
+                  ),
+                );
               },
               contentPadding: EdgeInsets.zero,
             ),
@@ -526,13 +535,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Text(
               'Settings',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 16),
             ListTile(
-              leading: const Icon(Icons.notifications_outlined, color: AppColors.primary),
+              leading: const Icon(
+                Icons.notifications_outlined,
+                color: AppColors.primary,
+              ),
               title: const Text('Notifications'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
@@ -541,7 +553,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               contentPadding: EdgeInsets.zero,
             ),
             ListTile(
-              leading: const Icon(Icons.privacy_tip_outlined, color: AppColors.primary),
+              leading: const Icon(
+                Icons.privacy_tip_outlined,
+                color: AppColors.primary,
+              ),
               title: const Text('Privacy'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
@@ -561,7 +576,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: AppColors.error),
-              title: const Text('Sign Out', style: TextStyle(color: AppColors.error)),
+              title: const Text(
+                'Sign Out',
+                style: TextStyle(color: AppColors.error),
+              ),
               onTap: _signOut,
               contentPadding: EdgeInsets.zero,
             ),
@@ -585,10 +603,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               const Text(
                 'Profile Photo',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 20),
               ListTile(
@@ -600,7 +615,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.photo_library, color: AppColors.primary),
+                leading: const Icon(
+                  Icons.photo_library,
+                  color: AppColors.primary,
+                ),
                 title: const Text('Choose from Gallery'),
                 onTap: () {
                   Navigator.pop(context);
@@ -610,7 +628,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               if (_userModel?.profileImageUrl != null)
                 ListTile(
                   leading: const Icon(Icons.delete, color: AppColors.error),
-                  title: const Text('Remove Photo', style: TextStyle(color: AppColors.error)),
+                  title: const Text(
+                    'Remove Photo',
+                    style: TextStyle(color: AppColors.error),
+                  ),
                   onTap: () {
                     Navigator.pop(context);
                     _removeProfileImage();
@@ -623,4 +644,4 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
-} 
+}

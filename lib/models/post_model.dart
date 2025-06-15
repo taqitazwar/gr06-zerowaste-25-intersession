@@ -1,6 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum PostStatus { available, claimed, expired }
+enum PostStatus {
+  available, // Initial state
+  claimed, // Someone has claimed it
+  completed, // Claim was accepted and completed
+  rejected, // Claim was rejected
+  expired, // Post has expired
+  cancelled, // Post was cancelled by owner
+}
 
 enum DietaryTag {
   vegetarian,
@@ -12,7 +19,7 @@ enum DietaryTag {
   kosher,
   organic,
   spicy,
-  none
+  none,
 }
 
 class PostModel {
@@ -70,10 +77,14 @@ class PostModel {
     return PostModel(
       postId: map['postId'] ?? '',
       postedBy: map['postedBy'] ?? '',
-      title: map['title'] ?? (map['description'] != null ? (map['description'] as String).split('\n').first : ''),
+      title:
+          map['title'] ??
+          (map['description'] != null
+              ? (map['description'] as String).split('\n').first
+              : ''),
       description: map['description'] ?? '',
       imageUrl: map['imageUrl'] ?? '',
-      expiry: map['expiry'] != null 
+      expiry: map['expiry'] != null
           ? (map['expiry'] as Timestamp).toDate()
           : DateTime.now(),
       location: map['location'] ?? const GeoPoint(0, 0),
@@ -83,16 +94,20 @@ class PostModel {
         (e) => e.name == (map['status'] ?? 'available'),
         orElse: () => PostStatus.available,
       ),
-      dietaryTags: (map['dietaryTags'] as List<dynamic>?)
-          ?.map((tag) => DietaryTag.values.firstWhere(
-                (e) => e.name == tag,
-                orElse: () => DietaryTag.none,
-              ))
-          .toList() ?? [],
-      timestamp: map['timestamp'] != null 
+      dietaryTags:
+          (map['dietaryTags'] as List<dynamic>?)
+              ?.map(
+                (tag) => DietaryTag.values.firstWhere(
+                  (e) => e.name == tag,
+                  orElse: () => DietaryTag.none,
+                ),
+              )
+              .toList() ??
+          [],
+      timestamp: map['timestamp'] != null
           ? (map['timestamp'] as Timestamp).toDate()
           : DateTime.now(),
-      updatedAt: map['updatedAt'] != null 
+      updatedAt: map['updatedAt'] != null
           ? (map['updatedAt'] as Timestamp).toDate()
           : null,
     );
@@ -148,11 +163,9 @@ class PostModel {
     if (dietaryTags.isEmpty || dietaryTags.contains(DietaryTag.none)) {
       return 'No dietary restrictions';
     }
-    return dietaryTags
-        .map((tag) => _getDietaryTagDisplayName(tag))
-        .join(', ');
+    return dietaryTags.map((tag) => _getDietaryTagDisplayName(tag)).join(', ');
   }
-  
+
   String _getDietaryTagDisplayName(DietaryTag tag) {
     switch (tag) {
       case DietaryTag.vegetarian:
@@ -182,4 +195,4 @@ class PostModel {
   String toString() {
     return 'PostModel(postId: $postId, title: $title, description: $description, status: $status)';
   }
-} 
+}
