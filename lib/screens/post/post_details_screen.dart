@@ -5,6 +5,7 @@ import '../../models/post_model.dart';
 import 'edit_post_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../chat/chat_screen.dart';
 
 class PostDetailsScreen extends StatelessWidget {
   final PostModel post;
@@ -627,22 +628,57 @@ class PostDetailsScreen extends StatelessWidget {
     );
   }
 
-  void _showContactDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Contact Poster'),
-        content: const Text(
-          'Messaging functionality will be available soon. For now, you can claim the food to get contact information.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+  void _showContactDialog(BuildContext context) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('You must be logged in to contact the poster');
+      }
+
+      // Create a unique chat ID that will be the same regardless of who initiates
+      final List<String> participants = [post.postedBy, user.uid]..sort();
+      final chatId = '${post.postId}_${participants.join('_')}';
+
+      // Create or get chat document
+      final chatRef = FirebaseFirestore.instance
+          .collection('chats')
+          .doc(chatId);
+      final chatDoc = await chatRef.get();
+
+      if (!chatDoc.exists) {
+        // Create new chat
+        await chatRef.set({
+          'participants': participants,
+          'postId': post.postId,
+          'postTitle': post.title,
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastMessageTime': FieldValue.serverTimestamp(),
+          'messages': [],
+        });
+      }
+
+      if (context.mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChatScreen(
+              chatId: chatId,
+              postTitle: post.title,
+              otherUserId: post.postedBy,
+            ),
           ),
-        ],
-      ),
-    );
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to start chat: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   void _showClaimManagementDialog(BuildContext context) async {

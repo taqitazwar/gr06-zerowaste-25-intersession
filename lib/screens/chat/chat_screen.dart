@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme.dart';
+import '../../models/message_model.dart';
 
 class ChatScreen extends StatefulWidget {
   final String chatId;
@@ -26,12 +27,14 @@ class _ChatScreenState extends State<ChatScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final ScrollController _scrollController = ScrollController();
   String _otherUserName = '';
+  String? _otherUserImage;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _fetchOtherUserDetails();
+    _markChatAsRead();
   }
 
   @override
@@ -50,7 +53,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
       if (mounted) {
         setState(() {
-          _otherUserName = userDoc.data()?['name'] ?? 'Unknown User';
+          _otherUserName = userDoc.data()?['displayName'] ?? 'Unknown User';
+          _otherUserImage = userDoc.data()?['profileImageUrl'];
           _isLoading = false;
         });
       }
@@ -64,6 +68,25 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  Future<void> _markChatAsRead() async {
+    try {
+      await _firestore
+          .collection('chats')
+          .doc(widget.chatId)
+          .collection('messages')
+          .where('senderId', isEqualTo: widget.otherUserId)
+          .where('isRead', isEqualTo: false)
+          .get()
+          .then((messages) {
+            for (var message in messages.docs) {
+              message.reference.update({'isRead': true});
+            }
+          });
+    } catch (e) {
+      print('Error marking messages as read: $e');
+    }
+  }
+
   Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
 
@@ -72,6 +95,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
     try {
       final timestamp = Timestamp.now();
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) return;
 
       // Add message to subcollection
       await _firestore
@@ -79,15 +104,17 @@ class _ChatScreenState extends State<ChatScreen> {
           .doc(widget.chatId)
           .collection('messages')
           .add({
-            'senderId': _auth.currentUser!.uid,
+            'senderId': currentUser.uid,
             'content': message,
             'timestamp': timestamp,
+            'isRead': false,
           });
 
       // Update chat document with last message
       await _firestore.collection('chats').doc(widget.chatId).update({
         'lastMessage': message,
         'lastMessageTime': timestamp,
+        'lastSenderId': currentUser.uid,
       });
 
       // Scroll to bottom
@@ -112,15 +139,39 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        titleSpacing: 0,
+        title: Row(
           children: [
-            Text(_otherUserName),
-            Text(
-              widget.postTitle,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.normal,
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: AppColors.primary.withOpacity(0.1),
+              backgroundImage: _otherUserImage != null
+                  ? NetworkImage(_otherUserImage!)
+                  : null,
+              child: _otherUserImage == null
+                  ? Text(
+                      _otherUserName[0].toUpperCase(),
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_otherUserName, style: const TextStyle(fontSize: 16)),
+                  Text(
+                    widget.postTitle,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.normal,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -155,7 +206,31 @@ class _ChatScreenState extends State<ChatScreen> {
                       final messages = snapshot.data!.docs;
 
                       if (messages.isEmpty) {
-                        return const Center(child: Text('No messages yet'));
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.message_outlined,
+                                size: 64,
+                                color: AppColors.secondary,
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'No messages yet',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Start the conversation!',
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+                            ],
+                          ),
+                        );
                       }
 
                       return ListView.builder(
@@ -167,14 +242,16 @@ class _ChatScreenState extends State<ChatScreen> {
                           final message =
                               messages[index].data() as Map<String, dynamic>;
                           final isMe =
-                              message['senderId'] == _auth.currentUser!.uid;
+                              message['senderId'] == _auth.currentUser?.uid;
                           final timestamp = (message['timestamp'] as Timestamp)
                               .toDate();
+                          final isRead = message['isRead'] ?? false;
 
                           return _buildMessageBubble(
                             message: message['content'],
                             isMe: isMe,
                             timestamp: timestamp,
+                            isRead: isRead,
                           );
                         },
                       );
@@ -191,6 +268,7 @@ class _ChatScreenState extends State<ChatScreen> {
     required String message,
     required bool isMe,
     required DateTime timestamp,
+    required bool isRead,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -201,11 +279,20 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           if (!isMe) ...[
             CircleAvatar(
-              backgroundColor: Colors.grey[300],
-              child: Text(
-                _otherUserName[0].toUpperCase(),
-                style: const TextStyle(color: Colors.white),
-              ),
+              radius: 16,
+              backgroundColor: AppColors.primary.withOpacity(0.1),
+              backgroundImage: _otherUserImage != null
+                  ? NetworkImage(_otherUserImage!)
+                  : null,
+              child: _otherUserImage == null
+                  ? Text(
+                      _otherUserName[0].toUpperCase(),
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 12,
+                      ),
+                    )
+                  : null,
             ),
             const SizedBox(width: 8),
           ],
@@ -222,7 +309,12 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: isMe ? AppColors.primary : Colors.grey[200],
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(20),
+                      topRight: const Radius.circular(20),
+                      bottomLeft: Radius.circular(isMe ? 20 : 0),
+                      bottomRight: Radius.circular(isMe ? 0 : 20),
+                    ),
                   ),
                   child: Text(
                     message,
@@ -230,9 +322,22 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  DateFormat('h:mm a').format(timestamp),
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      DateFormat('h:mm a').format(timestamp),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    ),
+                    if (isMe) ...[
+                      const SizedBox(width: 4),
+                      Icon(
+                        isRead ? Icons.done_all : Icons.done,
+                        size: 16,
+                        color: isRead ? Colors.blue : Colors.grey[400],
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -277,6 +382,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
                 textCapitalization: TextCapitalization.sentences,
                 maxLines: null,
+                onSubmitted: (_) => _sendMessage(),
               ),
             ),
             const SizedBox(width: 8),
