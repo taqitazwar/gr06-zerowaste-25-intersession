@@ -6,7 +6,7 @@ import '../auth/sign_in_screen.dart';
 import '../profile/profile_screen.dart';
 import '../post/add_post_screen.dart';
 import '../food/food_listings_screen.dart';
-import '../chat/chat_list_screen.dart';
+import '../map/map_view_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final int initialIndex;
@@ -21,10 +21,10 @@ class _HomeScreenState extends State<HomeScreen> {
   final _authService = AuthService();
 
   final List<Widget> _screens = [
-    const MapScreen(),
+    const MapViewScreen(),
     const FoodListingsScreen(),
     const AddPostScreen(),
-    const ChatListScreen(),
+    const ChatsScreen(),
     const ProfileScreen(),
   ];
 
@@ -90,7 +90,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: IndexedStack(index: _currentIndex, children: _screens),
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _screens,
+      ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: _currentIndex,
@@ -100,11 +103,26 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: AppColors.surface,
         elevation: 8,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Map'),
-          BottomNavigationBarItem(icon: Icon(Icons.restaurant), label: 'Posts'),
-          BottomNavigationBarItem(icon: Icon(Icons.add_circle), label: 'Add'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chats'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.map),
+            label: 'Map',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.restaurant),
+            label: 'Posts',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.add_circle),
+            label: 'Add',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat),
+            label: 'Chats',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Profile',
+          ),
         ],
       ),
     );
@@ -133,40 +151,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// Placeholder screens - will be implemented later
-class MapScreen extends StatelessWidget {
-  const MapScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: AppColors.background,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.map, size: 80, color: AppColors.primary),
-            SizedBox(height: 16),
-            Text(
-              'Map View',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppColors.onSurface,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Find food near you',
-              style: TextStyle(fontSize: 16, color: AppColors.onSurfaceVariant),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class PostsScreen extends StatelessWidget {
   const PostsScreen({super.key});
 
@@ -178,7 +162,11 @@ class PostsScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.restaurant, size: 80, color: AppColors.primary),
+            Icon(
+              Icons.restaurant,
+              size: 80,
+              color: AppColors.primary,
+            ),
             SizedBox(height: 16),
             Text(
               'Food Posts',
@@ -191,7 +179,10 @@ class PostsScreen extends StatelessWidget {
             SizedBox(height: 8),
             Text(
               'Browse available food',
-              style: TextStyle(fontSize: 16, color: AppColors.onSurfaceVariant),
+              style: TextStyle(
+                fontSize: 16,
+                color: AppColors.onSurfaceVariant,
+              ),
             ),
           ],
         ),
@@ -211,10 +202,14 @@ class ChatsScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.chat, size: 80, color: AppColors.primary),
+            Icon(
+              Icons.chat,
+              size: 80,
+              color: AppColors.primary,
+            ),
             SizedBox(height: 16),
             Text(
-              'Messages',
+              'Chats',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -223,12 +218,15 @@ class ChatsScreen extends StatelessWidget {
             ),
             SizedBox(height: 8),
             Text(
-              'Chat with other users',
-              style: TextStyle(fontSize: 16, color: AppColors.onSurfaceVariant),
+              'Connect with others',
+              style: TextStyle(
+                fontSize: 16,
+                color: AppColors.onSurfaceVariant,
+              ),
             ),
           ],
         ),
       ),
     );
   }
-}
+} 
