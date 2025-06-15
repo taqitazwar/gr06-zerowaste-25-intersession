@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../../core/theme.dart';
 import '../../models/post_model.dart';
 import '../../models/claim_model.dart';
+import '../../models/user_model.dart';
 import 'edit_post_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -26,11 +27,30 @@ class PostDetailsScreen extends StatefulWidget {
 class _PostDetailsScreenState extends State<PostDetailsScreen> {
   late PostModel post;
   bool _isLoading = false;
+  UserModel? _posterUser;
 
   @override
   void initState() {
     super.initState();
     post = widget.initialPost;
+    _fetchPosterInfo();
+  }
+
+  Future<void> _fetchPosterInfo() async {
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(post.postedBy)
+          .get();
+
+      if (userDoc.exists && mounted) {
+        setState(() {
+          _posterUser = UserModel.fromDocument(userDoc);
+        });
+      }
+    } catch (e) {
+      print('Error fetching poster info: $e');
+    }
   }
 
   Future<void> _refreshPost() async {
@@ -39,7 +59,7 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
           .collection('posts')
           .doc(post.postId)
           .get();
-      
+
       if (doc.exists && mounted) {
         setState(() {
           post = PostModel.fromDocument(doc);
@@ -239,6 +259,11 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
                     ),
                   ),
 
+                  const SizedBox(height: 24),
+
+                  // Poster Information
+                  if (_posterUser != null) _buildPosterInfoCard(),
+
                   const SizedBox(height: 32),
 
                   // Details Cards
@@ -282,7 +307,9 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
                   if (_isLoading) ...[
                     const Center(
                       child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppColors.primary,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -328,7 +355,9 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
                         ),
                       ),
                     ),
-                  ] else if (!widget.isOwnPost && post.status == PostStatus.pending && !_isLoading) ...[
+                  ] else if (!widget.isOwnPost &&
+                      post.status == PostStatus.pending &&
+                      !_isLoading) ...[
                     // Pending claim info for non-owners
                     Container(
                       width: double.infinity,
@@ -396,7 +425,8 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
                       ),
                     ),
                   ] else if (widget.isOwnPost &&
-                      post.status == PostStatus.pending && !_isLoading) ...[
+                      post.status == PostStatus.pending &&
+                      !_isLoading) ...[
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
@@ -677,17 +707,19 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
 
                 if (context.mounted) {
                   Navigator.pop(context); // Close dialog
-                  
+
                   // Refresh the post data to show updated status
                   await _refreshPost();
-                  
+
                   setState(() {
                     _isLoading = false;
                   });
-                  
+
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Food claimed successfully! The poster will be notified.'),
+                      content: Text(
+                        'Food claimed successfully! The poster will be notified.',
+                      ),
                       backgroundColor: AppColors.primary,
                     ),
                   );
@@ -696,7 +728,7 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
                 setState(() {
                   _isLoading = false;
                 });
-                
+
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -799,7 +831,7 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
       }
 
       final claim = ClaimModel.fromDocument(claimDoc);
-      
+
       // Get claimer details
       final claimerSnapshot = await FirebaseFirestore.instance
           .collection('users')
@@ -841,7 +873,9 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
                     Navigator.pop(context, true); // Refresh parent screen
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Claim rejected. Post is now available again.'),
+                        content: Text(
+                          'Claim rejected. Post is now available again.',
+                        ),
                         backgroundColor: Colors.orange,
                       ),
                     );
@@ -851,7 +885,9 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Failed to reject claim: ${e.toString()}'),
+                        content: Text(
+                          'Failed to reject claim: ${e.toString()}',
+                        ),
                         backgroundColor: AppColors.error,
                       ),
                     );
@@ -869,7 +905,9 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
                     Navigator.pop(context, true); // Refresh parent screen
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Claim accepted! Food marked as completed.'),
+                        content: Text(
+                          'Claim accepted! Food marked as completed.',
+                        ),
                         backgroundColor: AppColors.primary,
                       ),
                     );
@@ -879,7 +917,9 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Failed to accept claim: ${e.toString()}'),
+                        content: Text(
+                          'Failed to accept claim: ${e.toString()}',
+                        ),
                         backgroundColor: AppColors.error,
                       ),
                     );
@@ -901,5 +941,88 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
         );
       }
     }
+  }
+
+  Widget _buildPosterInfoCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.secondary.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.person,
+                  color: AppColors.secondary,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              const Text(
+                'Posted by',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.onSurface,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _posterUser!.name,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.star, color: Colors.amber, size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          _posterUser!.ratingDisplay,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }

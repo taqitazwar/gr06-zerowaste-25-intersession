@@ -6,8 +6,10 @@ import '../../core/theme.dart';
 import '../../models/post_model.dart';
 import '../../models/claim_model.dart';
 import '../../services/claim_service.dart';
+import '../../services/rating_service.dart';
 import '../post/post_details_screen.dart';
 import '../chat/chat_screen.dart';
+import '../rating/rate_user_screen.dart';
 
 class MyClaimsScreen extends StatefulWidget {
   const MyClaimsScreen({Key? key}) : super(key: key);
@@ -39,11 +41,14 @@ class _MyClaimsScreenState extends State<MyClaimsScreen> {
     try {
       // Get claims made by current user
       final claims = await ClaimService.getMyClaimsWithPosts();
-      
+
       // Get post details for each claim
       final Map<String, PostModel> posts = {};
       for (final claim in claims) {
-        final postDoc = await _firestore.collection('posts').doc(claim.postId).get();
+        final postDoc = await _firestore
+            .collection('posts')
+            .doc(claim.postId)
+            .get();
         if (postDoc.exists) {
           posts[claim.postId] = PostModel.fromDocument(postDoc);
         }
@@ -88,7 +93,8 @@ class _MyClaimsScreenState extends State<MyClaimsScreen> {
       if (post == null) return;
 
       // Create a unique chat ID
-      final List<String> participants = [post.postedBy, claim.claimerId]..sort();
+      final List<String> participants = [post.postedBy, claim.claimerId]
+        ..sort();
       final chatId = '${post.postId}_${participants.join('_')}';
 
       // Create or get chat document
@@ -138,7 +144,10 @@ class _MyClaimsScreenState extends State<MyClaimsScreen> {
         title: const Text('My Claims'),
         backgroundColor: AppColors.primary,
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _fetchMyClaims),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _fetchMyClaims,
+          ),
         ],
       ),
       body: _buildBody(),
@@ -375,7 +384,7 @@ class _MyClaimsScreenState extends State<MyClaimsScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                     ),
-                    
+
                     // Status-specific buttons
                     if (isPending) ...[
                       const SizedBox(height: 12),
@@ -389,7 +398,9 @@ class _MyClaimsScreenState extends State<MyClaimsScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
                               ),
                             ),
                           ),
@@ -402,7 +413,9 @@ class _MyClaimsScreenState extends State<MyClaimsScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.red,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
                               ),
                             ),
                           ),
@@ -410,15 +423,65 @@ class _MyClaimsScreenState extends State<MyClaimsScreen> {
                       ),
                     ] else if (isAccepted) ...[
                       const SizedBox(height: 12),
-                      ElevatedButton.icon(
-                        onPressed: () => _startChat(claim),
-                        icon: const Icon(Icons.message_outlined),
-                        label: const Text('Message Creator'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () => _startChat(claim),
+                              icon: const Icon(Icons.message_outlined),
+                              label: const Text('Message Creator'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: FutureBuilder<bool>(
+                              future: RatingService.hasRatedUser(
+                                claimId: claim.claimId,
+                                toUserId: post.postedBy,
+                              ),
+                              builder: (context, snapshot) {
+                                final hasRated = snapshot.data ?? false;
+
+                                if (hasRated) {
+                                  return OutlinedButton.icon(
+                                    onPressed: null,
+                                    icon: const Icon(Icons.star, size: 18),
+                                    label: const Text('Rated'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.grey,
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
+                                    ),
+                                  );
+                                }
+
+                                return ElevatedButton.icon(
+                                  onPressed: () => _rateUser(claim, post),
+                                  icon: const Icon(
+                                    Icons.star_outline,
+                                    size: 18,
+                                  ),
+                                  label: const Text('Rate Creator'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.amber,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ],
@@ -429,6 +492,26 @@ class _MyClaimsScreenState extends State<MyClaimsScreen> {
         ],
       ),
     );
+  }
+
+  void _rateUser(ClaimModel claim, PostModel post) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RateUserScreen(
+          claimId: claim.claimId,
+          postId: post.postId,
+          toUserId: post.postedBy,
+          postTitle: post.title,
+          userRole: 'claimer', // Current user is the claimer
+        ),
+      ),
+    );
+
+    if (result == true) {
+      // Rating was submitted, refresh the screen
+      _fetchMyClaims();
+    }
   }
 
   Color _getClaimStatusColor(ClaimStatus status) {
