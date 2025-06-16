@@ -87,7 +87,7 @@ class UserModel {
   // Helper method to get formatted rating display
   String get ratingDisplay {
     if (totalRatings == 0) return 'No ratings yet';
-    return '${rating.toStringAsFixed(1)} тнР ($totalRatings ${totalRatings == 1 ? 'rating' : 'ratings'})';
+    return '${rating.toStringAsFixed(1)} ⭐ ($totalRatings ${totalRatings == 1 ? 'rating' : 'ratings'})';
   }
 
   @override
