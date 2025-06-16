@@ -285,6 +285,11 @@ class _AddPostScreenState extends State<AddPostScreen> {
       return;
     }
 
+    if (_imageUrl == null || _imageUrl!.isEmpty) {
+      _showSnackBar('Please add a photo of your food', isError: true);
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -542,7 +547,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Food Photo',
+          'Food Photo *',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
@@ -641,16 +646,16 @@ class _AddPostScreenState extends State<AddPostScreen> {
                   ),
                   SizedBox(height: 12),
                   Text(
-                    'Tap to add photo',
+                    'Tap to add photo *',
                     style: TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.onSurface,
                     ),
                   ),
                   SizedBox(height: 4),
                   Text(
-                    'A good photo helps others see what you\'re sharing!',
+                    'A photo is required to help others see what you\'re sharing!',
                     style: TextStyle(
                       fontSize: 12,
                       color: AppColors.onSurfaceVariant,
