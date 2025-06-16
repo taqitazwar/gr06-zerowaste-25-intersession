@@ -312,30 +312,24 @@ exports.notifyNearbyFood = onDocumentCreated("posts/{postId}", async (event) => 
   }
 });
 
-// 4. Notify users when they receive new chat messages
-exports.notifyNewMessage = onDocumentUpdated("chats/{chatId}", async (event) => {
+// 4. Notify users when they receive new chat messages - TRIGGER ON MESSAGE DOC CREATE
+exports.notifyNewMessage = onDocumentCreated("chats/{chatId}/messages/{messageId}", async (event) => {
   try {
-    const beforeData = event.data.before.data();
-    const afterData = event.data.after.data();
-    const chatId = event.params.chatId;
+    const {chatId, messageId} = event.params;
+    const messageData = event.data.data();
 
-    // Check if new messages were added
-    const beforeMessageCount = beforeData.messages ? beforeData.messages.length : 0;
-    const afterMessageCount = afterData.messages ? afterData.messages.length : 0;
+    const senderId = messageData.senderId || messageData.sender || "";
+    const messageContent = messageData.content || "";
 
-    if (afterMessageCount <= beforeMessageCount) {
-      return; // No new messages
+    // Fetch chat document to get participants & post context
+    const chatDoc = await db.collection("chats").doc(chatId).get();
+    if (!chatDoc.exists) {
+      logger.error("Chat not found:", chatId);
+      return;
     }
 
-    // Get the latest message
-    const latestMessage = afterData.messages[afterData.messages.length - 1];
-    const senderId = latestMessage.sender;
-    const messageContent = latestMessage.content;
-
-    logger.info("New message in chat:", chatId, "from:", senderId);
-
-    // Get participants
-    const participants = afterData.participants || [];
+    const chatData = chatDoc.data();
+    const participants = chatData.participants || [];
     const receiverId = participants.find((id) => id !== senderId);
 
     if (!receiverId) {
@@ -349,7 +343,6 @@ exports.notifyNewMessage = onDocumentUpdated("chats/{chatId}", async (event) => 
       logger.error("Sender not found:", senderId);
       return;
     }
-
     const senderData = senderDoc.data();
 
     // Get receiver details
@@ -358,7 +351,6 @@ exports.notifyNewMessage = onDocumentUpdated("chats/{chatId}", async (event) => 
       logger.error("Receiver not found:", receiverId);
       return;
     }
-
     const receiverData = receiverDoc.data();
 
     // Send notification to the receiver
@@ -366,14 +358,16 @@ exports.notifyNewMessage = onDocumentUpdated("chats/{chatId}", async (event) => 
       await sendNotification(
           receiverData.fcmToken,
           `New message from ${senderData.name} 💬`,
-        messageContent.length > 50 ? messageContent.substring(0, 50) + "..." : messageContent,
+        messageContent.length > 50 ?
+           messageContent.substring(0, 50) + "..." : messageContent,
         {
           type: "new_message",
           chatId: chatId,
           senderId: senderId,
           senderName: senderData.name,
-          postId: afterData.postId || "",
-          postTitle: afterData.postTitle || "",
+          postId: chatData.postId || "",
+          postTitle: chatData.postTitle || "",
+          messageId: messageId,
         },
       );
     }

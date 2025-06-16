@@ -1,46 +1,137 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper functions
-    function isAuthenticated() {
+
+    /************** Helper Functions **************/
+    function isSignedIn() {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+    function isUser(uid) {
+      return isSignedIn() && request.auth.uid == uid;
     }
 
-    function isChatParticipant(participants) {
-      return isAuthenticated() && request.auth.uid in participants;
+    function isParticipant(participants) {
+      return isSignedIn() && request.auth.uid in participants;
     }
 
-    // User collection rules
+    // Helper to validate status transitions on posts
+    function isStatusTransition(oldStatus, newStatus) {
+      return resource.data.status == oldStatus && request.resource.data.status == newStatus;
+    }
+
+    /**************** Users ****************/
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow write: if isOwner(userId);
+      allow read: if isSignedIn();
+
+      // User themselves can modify anything
+      allow create, update, delete: if isUser(userId);
+
+      /*
+        Allow other authenticated users to update a user document **only**
+        to modify rating statistics (rating, totalRatings) and lastActive.
+        All other fields must remain unchanged.
+      */
+      allow update: if isSignedIn() && !isUser(userId) &&
+        // Ensure immutable fields stay the same
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.name == resource.data.name &&
+        request.resource.data.email == resource.data.email &&
+        request.resource.data.profileImageUrl == resource.data.profileImageUrl &&
+        request.resource.data.location == resource.data.location &&
+        request.resource.data.fcmToken == resource.data.fcmToken &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+
+        // Permit changes only to rating-related fields
+        request.resource.data.rating is number &&
+        request.resource.data.totalRatings is int &&
+        (request.resource.data.lastActive is timestamp || request.resource.data.lastActive == resource.data.lastActive);
     }
 
-    // Posts collection rules
+    /**************** Posts ****************/
     match /posts/{postId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (
-        resource.data.postedBy == request.auth.uid || 
-        resource.data.claimedBy == request.auth.uid
+      allow read: if isSignedIn();
+
+      // Only the authenticated poster can create a post
+      allow create: if isSignedIn() && request.resource.data.postedBy == request.auth.uid;
+
+      // Updates
+      allow update: if isSignedIn() && (
+        // 1. Poster can always update their own post
+        resource.data.postedBy == request.auth.uid ||
+
+        // 2. Claimer transitions post from available -> pending & sets activeClaim
+        (
+          isStatusTransition('available', 'pending') &&
+          (request.resource.data.activeClaim is string && request.resource.data.activeClaim.size() > 0)
+        )
       );
-      allow delete: if isAuthenticated() && resource.data.postedBy == request.auth.uid;
+
+      // Only poster may delete
+      allow delete: if isUser(resource.data.postedBy);
     }
 
-    // Chats collection rules
+    /**************** Claims ****************/
+    match /claims/{claimId} {
+      allow read: if isSignedIn();
+
+      // Create: claimer is the auth user, status must start as 'pending'
+      allow create: if isSignedIn() &&
+        request.resource.data.claimerId == request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.creatorId != request.auth.uid;
+
+      // Update: only creator may accept/reject a pending claim
+      allow update: if isSignedIn() &&
+        resource.data.status == 'pending' &&
+        resource.data.creatorId == request.auth.uid &&
+        (request.resource.data.status == 'accepted' || request.resource.data.status == 'rejected');
+
+      // Delete: claimer can cancel while still pending
+      allow delete: if isSignedIn() &&
+        resource.data.status == 'pending' &&
+        resource.data.claimerId == request.auth.uid;
+    }
+
+    /**************** Ratings ****************/
+    match /ratings/{ratingId} {
+      allow read: if isSignedIn();
+
+      // Create: fromUserId must be the signer and rating value within 1-5
+      allow create: if isSignedIn() &&
+        request.resource.data.fromUserId == request.auth.uid &&
+        request.resource.data.rating >= 1 && request.resource.data.rating <= 5;
+
+      // Ratings are immutable after creation
+      allow update: if false;
+      allow delete: if isUser(resource.data.fromUserId);
+    }
+
+    /**************** Chats & Messages ****************/
     match /chats/{chatId} {
-      allow create: if isAuthenticated();
-      allow read, update: if isAuthenticated() && isChatParticipant(resource.data.participants);
-      
-      // Messages subcollection rules
+      allow read, update: if isParticipant(resource.data.participants);
+      allow create: if isParticipant(request.resource.data.participants);
+
+      // Messages sub-collection
       match /messages/{messageId} {
-        allow read: if isAuthenticated() && isChatParticipant(get(/databases/$(database)/documents/chats/$(chatId)).data.participants);
-        allow create: if isAuthenticated() && isChatParticipant(get(/databases/$(database)/documents/chats/$(chatId)).data.participants) && request.resource.data.senderId == request.auth.uid;
-        allow update: if isAuthenticated() && isChatParticipant(get(/databases/$(database)/documents/chats/$(chatId)).data.participants);
+        // Only chat participants can read
+        allow read: if isParticipant(get(/databases/$(database)/documents/chats/$(chatId)).data.participants);
+
+        // Create: senderId must match auth user
+        allow create: if isParticipant(get(/databases/$(database)/documents/chats/$(chatId)).data.participants) &&
+          request.resource.data.senderId == request.auth.uid;
+
+        /*
+          Update: allow only toggling isRead from false -> true by the recipient.
+          We purposely disallow editing of message content or sender.
+        */
+        allow update: if isParticipant(get(/databases/$(database)/documents/chats/$(chatId)).data.participants) &&
+          resource.data.senderId != request.auth.uid &&
+          resource.data.isRead == false &&
+          request.resource.data.isRead == true;
+
+        // No deletes to preserve message history
+        allow delete: if false;
       }
     }
   }
