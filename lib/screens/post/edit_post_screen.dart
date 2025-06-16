@@ -308,6 +308,11 @@ class _EditPostScreenState extends State<EditPostScreen> {
       return;
     }
 
+    if (_imageUrl == null || _imageUrl!.isEmpty) {
+      _showSnackBar('Please add a photo of your food', isError: true);
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -567,7 +572,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Food Photo',
+          'Food Photo *',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
@@ -629,30 +634,46 @@ class _EditPostScreenState extends State<EditPostScreen> {
                     },
                   )
                 else
-                  Container(
-                    height: 200,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.add_a_photo,
-                            color: Colors.grey,
-                            size: 48,
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'No image selected',
-                            style: TextStyle(
-                              color: Colors.grey,
-                              fontSize: 14,
+                  GestureDetector(
+                    onTap: _pickImage,
+                    child: Container(
+                      height: 200,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.grey[300]!,
+                          width: 2,
+                        ),
+                      ),
+                      child: const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.add_a_photo,
+                              color: AppColors.primary,
+                              size: 48,
                             ),
-                          ),
-                        ],
+                            SizedBox(height: 8),
+                            Text(
+                              'Tap to add photo *',
+                              style: TextStyle(
+                                color: AppColors.onSurface,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'A photo is required',
+                              style: TextStyle(
+                                color: AppColors.onSurfaceVariant,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),

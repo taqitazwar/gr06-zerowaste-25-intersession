@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/auth_service.dart';
 import '../../core/theme.dart';
 import '../../models/models.dart';
@@ -211,12 +212,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
             // Manage Posts Section
             _buildManagePostsSection(),
 
-            const SizedBox(height: 32),
-
-            // Settings Section
-            _buildSettingsSection(),
-
             const SizedBox(height: 40),
+
+            // Sign Out Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _signOut,
+                icon: const Icon(Icons.logout),
+                label: const Text('Sign Out'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -380,6 +394,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildStatsSection() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return const SizedBox.shrink();
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -388,35 +405,82 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Text(
               'Your Stats',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 16),
             Row(
               children: [
+                // Posts Shared
                 Expanded(
-                  child: _buildStatItem(
-                    icon: Icons.restaurant,
-                    label: 'Posts Shared',
-                    value: '0', // TODO: Get actual count from Firestore
-                    color: AppColors.primary,
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('posts')
+                        .where('postedBy', isEqualTo: user.uid)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                      return _buildStatItem(
+                        icon: Icons.restaurant,
+                        label: 'Posts Shared',
+                        value: count.toString(),
+                        color: AppColors.primary,
+                      );
+                    },
                   ),
                 ),
+                // Claims Made
                 Expanded(
-                  child: _buildStatItem(
-                    icon: Icons.check_circle,
-                    label: 'Food Claimed',
-                    value: '0', // TODO: Get actual count from Firestore
-                    color: AppColors.secondary,
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('claims')
+                        .where('claimerId', isEqualTo: user.uid)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                      return _buildStatItem(
+                        icon: Icons.check_circle,
+                        label: 'Food Claimed',
+                        value: count.toString(),
+                        color: AppColors.secondary,
+                      );
+                    },
                   ),
                 ),
+                // User Rating
                 Expanded(
-                  child: _buildStatItem(
-                    icon: Icons.star,
-                    label: 'Rating',
-                    value: _userModel?.rating.toStringAsFixed(1) ?? '0.0',
-                    color: AppColors.warning,
+                  child: StreamBuilder<DocumentSnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(user.uid)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData && snapshot.data!.exists) {
+                        final userData = snapshot.data!.data() as Map<String, dynamic>;
+                        final rating = (userData['rating'] ?? 0.0).toDouble();
+                        final totalRatings = userData['totalRatings'] ?? 0;
+                        final displayValue = totalRatings == 0 
+                            ? '0.0' 
+                            : rating.toStringAsFixed(1);
+                        return _buildStatItem(
+                          icon: Icons.star,
+                          label: 'Rating',
+                          value: displayValue,
+                          color: AppColors.warning,
+                          subtitle: totalRatings == 0 
+                              ? 'No ratings yet' 
+                              : '($totalRatings ${totalRatings == 1 ? 'rating' : 'ratings'})',
+                        );
+                      }
+                      return _buildStatItem(
+                        icon: Icons.star,
+                        label: 'Rating',
+                        value: '0.0',
+                        color: AppColors.warning,
+                        subtitle: 'No ratings yet',
+                      );
+                    },
                   ),
                 ),
               ],
@@ -432,6 +496,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String label,
     required String value,
     required Color color,
+    String? subtitle,
   }) {
     return Column(
       children: [
@@ -453,11 +518,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         Text(
           label,
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: AppColors.onSurfaceVariant),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppColors.onSurfaceVariant,
+          ),
           textAlign: TextAlign.center,
         ),
+        if (subtitle != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.onSurfaceVariant,
+              fontSize: 10,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ],
     );
   }
@@ -542,69 +618,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 );
               },
-              contentPadding: EdgeInsets.zero,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSettingsSection() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Settings',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(
-                Icons.notifications_outlined,
-                color: AppColors.primary,
-              ),
-              title: const Text('Notifications'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                // TODO: Navigate to notification settings
-              },
-              contentPadding: EdgeInsets.zero,
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.privacy_tip_outlined,
-                color: AppColors.primary,
-              ),
-              title: const Text('Privacy'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                // TODO: Navigate to privacy settings
-              },
-              contentPadding: EdgeInsets.zero,
-            ),
-            ListTile(
-              leading: const Icon(Icons.help_outline, color: AppColors.primary),
-              title: const Text('Help & Support'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                // TODO: Navigate to help
-              },
-              contentPadding: EdgeInsets.zero,
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.logout, color: AppColors.error),
-              title: const Text(
-                'Sign Out',
-                style: TextStyle(color: AppColors.error),
-              ),
-              onTap: _signOut,
               contentPadding: EdgeInsets.zero,
             ),
           ],

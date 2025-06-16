@@ -57,27 +57,6 @@ class _HomeScreenState extends State<HomeScreen> {
             },
             itemBuilder: (context) => [
               const PopupMenuItem(
-                value: 'profile',
-                child: Row(
-                  children: [
-                    Icon(Icons.person, color: AppColors.onSurface),
-                    SizedBox(width: 12),
-                    Text('Profile'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'settings',
-                child: Row(
-                  children: [
-                    Icon(Icons.settings, color: AppColors.onSurface),
-                    SizedBox(width: 12),
-                    Text('Settings'),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
-              const PopupMenuItem(
                 value: 'logout',
                 child: Row(
                   children: [

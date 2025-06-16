@@ -7,6 +7,8 @@ import '../post/post_details_screen.dart';
 import '../../core/theme.dart';
 import 'dart:ui' as ui;
 import 'dart:typed_data';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/auth_service.dart';
 
 class MapViewScreen extends StatefulWidget {
   const MapViewScreen({super.key});
@@ -49,6 +51,20 @@ class _MapViewScreenState extends State<MapViewScreen> {
         _currentPosition = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high,
         );
+
+        // NEW: Persist user location in Firestore
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          final geoPoint = GeoPoint(
+            _currentPosition!.latitude,
+            _currentPosition!.longitude,
+          );
+          try {
+            await AuthService().updateUserLocation(user.uid, geoPoint);
+          } catch (_) {
+            // Silently ignore – may fail if rules block or user doc not ready
+          }
+        }
       } else {
         // Fallback to Toronto City Hall if permission denied
         _currentPosition = Position(

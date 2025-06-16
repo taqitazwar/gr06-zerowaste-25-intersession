@@ -95,6 +95,8 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
         );
       }
 
+      // Add a small delay to ensure Firestore updates are propagated
+      await Future.delayed(const Duration(milliseconds: 500));
       _fetchMyPosts(); // Refresh the list
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -592,9 +594,9 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                   ),
                 ] else if (isCompleted) ...[
                   const SizedBox(height: 16),
-                  // For completed posts, check if we can rate the claimer
+                  // For completed posts, find the accepted claim for this post
                   FutureBuilder<ClaimModel?>(
-                    future: ClaimService.getActiveClaimForPost(post.postId),
+                    future: _getAcceptedClaimForPost(post.postId),
                     builder: (context, claimSnapshot) {
                       if (!claimSnapshot.hasData ||
                           claimSnapshot.data == null) {
@@ -753,5 +755,19 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
       case PostStatus.completed:
         return 'Completed';
     }
+  }
+
+  Future<ClaimModel?> _getAcceptedClaimForPost(String postId) async {
+    final snapshot = await _firestore
+        .collection('claims')
+        .where('postId', isEqualTo: postId)
+        .where('status', isEqualTo: ClaimStatus.accepted.name)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isNotEmpty) {
+      return ClaimModel.fromDocument(snapshot.docs.first);
+    }
+    return null;
   }
 }
