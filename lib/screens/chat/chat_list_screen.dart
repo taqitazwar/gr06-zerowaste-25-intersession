@@ -23,10 +23,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Messages'),
-        backgroundColor: AppColors.primary,
-      ),
       body: _buildBody(),
     );
   }

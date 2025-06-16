@@ -18,68 +18,80 @@ class FoodListingsScreen extends StatefulWidget {
 class _FoodListingsScreenState extends State<FoodListingsScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  List<PostModel> _posts = [];
-  bool _isLoading = true;
-  String _errorMessage = '';
+  Set<DietaryTag> _selectedDietaryTags = {};
 
   @override
   void initState() {
     super.initState();
-    _fetchPosts();
   }
 
-  Future<void> _fetchPosts() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
-
-    try {
-      final QuerySnapshot snapshot = await _firestore
-          .collection('posts')
-          .where('status', whereIn: [PostStatus.available.name, PostStatus.pending.name])
-          .where('expiry', isGreaterThan: Timestamp.fromDate(DateTime.now()))
-          .orderBy('expiry')
-          .orderBy('timestamp', descending: true)
-          .get();
-
-      final List<PostModel> posts = snapshot.docs
+  Stream<List<PostModel>> _getPostsStream() {
+    return _firestore
+        .collection('posts')
+        .where('status', whereIn: [PostStatus.available.name, PostStatus.pending.name])
+        .where('expiry', isGreaterThan: Timestamp.fromDate(DateTime.now()))
+        .orderBy('expiry')
+        .orderBy('timestamp', descending: true) // Latest first
+        .snapshots()
+        .map((snapshot) {
+      List<PostModel> posts = snapshot.docs
           .map((doc) => PostModel.fromDocument(doc))
           .toList();
-
-      setState(() {
-        _posts = posts;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Error fetching posts: ${e.toString()}';
-        _isLoading = false;
-      });
-    }
+      
+      // Apply dietary filter if any tags are selected
+      if (_selectedDietaryTags.isNotEmpty) {
+        posts = posts.where((post) {
+          // If no dietary tags on post, only show if "none" is selected
+          if (post.dietaryTags.isEmpty || post.dietaryTags.contains(DietaryTag.none)) {
+            return _selectedDietaryTags.contains(DietaryTag.none);
+          }
+          // Check if post has any of the selected dietary tags
+          return post.dietaryTags.any((tag) => _selectedDietaryTags.contains(tag));
+        }).toList();
+      }
+      
+      return posts;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Available Food'),
-        backgroundColor: AppColors.primary,
-        actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _fetchPosts),
+      body: Column(
+        children: [
+          // Filter Section
+          _buildFilterSection(),
+          // Posts List
+          Expanded(
+            child: StreamBuilder<List<PostModel>>(
+              stream: _getPostsStream(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return _buildErrorState('Error loading posts: ${snapshot.error}');
+                }
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return _buildLoadingState();
+                }
+
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return _buildEmptyState();
+                }
+
+                final posts = snapshot.data!;
+                return _buildPostsList(posts);
+              },
+            ),
+          ),
         ],
       ),
-      body: _buildBody(),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           final result = await Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const AddPostScreen()),
           );
-
-          if (result == true) {
-            _fetchPosts();
-          }
+          // No need to refresh manually - StreamBuilder handles it automatically
         },
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.add),
@@ -87,94 +99,89 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
     );
   }
 
-  Widget _buildBody() {
-    if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-        ),
-      );
-    }
+  Widget _buildLoadingState() {
+    return const Center(
+      child: CircularProgressIndicator(
+        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+      ),
+    );
+  }
 
-    if (_errorMessage.isNotEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, color: Colors.red, size: 60),
-            const SizedBox(height: 16),
-            Text(
-              _errorMessage,
-              style: const TextStyle(color: Colors.red),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _fetchPosts,
-              child: const Text('Try Again'),
-            ),
-          ],
-        ),
-      );
-    }
+  Widget _buildErrorState(String error) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, color: Colors.red, size: 60),
+          const SizedBox(height: 16),
+          Text(
+            error,
+            style: const TextStyle(color: Colors.red),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {}); // Rebuild to retry the stream
+            },
+            child: const Text('Try Again'),
+          ),
+        ],
+      ),
+    );
+  }
 
-    if (_posts.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.no_food, color: AppColors.secondary, size: 80),
-            const SizedBox(height: 16),
-            const Text(
-              'No food available right now',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Be the first to share some food!',
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AddPostScreen(),
-                  ),
-                );
-
-                if (result == true) {
-                  _fetchPosts();
-                }
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Add Food Post'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.no_food, color: AppColors.secondary, size: 80),
+          const SizedBox(height: 16),
+          const Text(
+            'No food available right now',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Be the first to share some food!',
+            style: TextStyle(color: Colors.grey),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AddPostScreen(),
                 ),
+              );
+              // No need to refresh manually - StreamBuilder handles it automatically
+            },
+            icon: const Icon(Icons.add),
+            label: const Text('Add Food Post'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
               ),
             ),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _fetchPosts,
-      color: AppColors.primary,
-      child: ListView.builder(
-        itemCount: _posts.length,
-        padding: const EdgeInsets.all(16),
-        itemBuilder: (context, index) {
-          final post = _posts[index];
-          return _buildPostCard(post);
-        },
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildPostsList(List<PostModel> posts) {
+    return ListView.builder(
+      itemCount: posts.length,
+      padding: const EdgeInsets.all(16),
+      itemBuilder: (context, index) {
+        final post = posts[index];
+        return _buildPostCard(post);
+      },
     );
   }
 
@@ -491,6 +498,40 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
                     ],
                   ),
                 ),
+
+                // Dietary Tags
+                if (post.dietaryTags.isNotEmpty && !post.dietaryTags.contains(DietaryTag.none)) ...[
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: post.dietaryTags
+                        .where((tag) => tag != DietaryTag.none)
+                        .map((tag) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.secondary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: AppColors.secondary.withOpacity(0.3),
+                                ),
+                              ),
+                              child: Text(
+                                _getDietaryTagDisplayName(tag),
+                                style: const TextStyle(
+                                  color: AppColors.secondary,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ))
+                        .toList(),
+                  ),
+                ],
+
                 const SizedBox(height: 20),
 
                 // Action buttons
@@ -578,7 +619,7 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
 
     // Refresh posts if the post was claimed
     if (result == true) {
-      _fetchPosts();
+      setState(() {}); // Rebuild to refresh the stream
     }
   }
 
@@ -597,7 +638,7 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
             backgroundColor: AppColors.primary,
           ),
         );
-        _fetchPosts(); // Refresh the list
+        setState(() {}); // Rebuild to refresh the stream
       }
     } catch (e) {
       if (mounted) {
@@ -608,6 +649,189 @@ class _FoodListingsScreenState extends State<FoodListingsScreen> {
           ),
         );
       }
+    }
+  }
+
+  Widget _buildFilterSection() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Filter button
+          OutlinedButton.icon(
+            onPressed: _showDietaryFilterDialog,
+            icon: Icon(
+              Icons.filter_list,
+              size: 18,
+              color: _selectedDietaryTags.isNotEmpty 
+                  ? AppColors.primary 
+                  : Colors.grey[600],
+            ),
+            label: Text(
+              _selectedDietaryTags.isEmpty 
+                  ? 'Filter' 
+                  : 'Filter (${_selectedDietaryTags.length})',
+              style: TextStyle(
+                color: _selectedDietaryTags.isNotEmpty 
+                    ? AppColors.primary 
+                    : Colors.grey[600],
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(
+                color: _selectedDietaryTags.isNotEmpty 
+                    ? AppColors.primary 
+                    : Colors.grey[300]!,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+          ),
+          
+          // Clear filters button (only show if filters are active)
+          if (_selectedDietaryTags.isNotEmpty) ...[
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: _clearFilters,
+              child: const Text(
+                'Clear',
+                style: TextStyle(color: AppColors.error),
+              ),
+            ),
+          ],
+          
+          const Spacer(),
+          
+          // Active filter chips
+          if (_selectedDietaryTags.isNotEmpty)
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: _selectedDietaryTags.map((tag) {
+                    return Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Chip(
+                        label: Text(
+                          _getDietaryTagDisplayName(tag),
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        onDeleted: () => _removeFilter(tag),
+                        backgroundColor: AppColors.primary.withOpacity(0.1),
+                        labelStyle: const TextStyle(color: AppColors.primary),
+                        deleteIconColor: AppColors.primary,
+                        side: BorderSide(color: AppColors.primary.withOpacity(0.3)),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showDietaryFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Filter by Dietary Tags'),
+          content: Container(
+            width: double.maxFinite,
+            constraints: const BoxConstraints(maxHeight: 400),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: DietaryTag.values.map((tag) {
+                  return CheckboxListTile(
+                    title: Text(_getDietaryTagDisplayName(tag)),
+                    value: _selectedDietaryTags.contains(tag),
+                    activeColor: AppColors.primary,
+                    onChanged: (bool? value) {
+                      setDialogState(() {
+                        if (value == true) {
+                          _selectedDietaryTags.add(tag);
+                        } else {
+                          _selectedDietaryTags.remove(tag);
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                setDialogState(() {
+                  _selectedDietaryTags.clear();
+                });
+              },
+              child: const Text('Clear All'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {}); // Update main screen to apply filters
+                Navigator.pop(context);
+              },
+              child: const Text('Apply'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _selectedDietaryTags.clear();
+    });
+  }
+
+  void _removeFilter(DietaryTag tag) {
+    setState(() {
+      _selectedDietaryTags.remove(tag);
+    });
+  }
+
+  String _getDietaryTagDisplayName(DietaryTag tag) {
+    switch (tag) {
+      case DietaryTag.vegetarian:
+        return 'Vegetarian';
+      case DietaryTag.vegan:
+        return 'Vegan';
+      case DietaryTag.glutenFree:
+        return 'Gluten-Free';
+      case DietaryTag.dairyFree:
+        return 'Dairy-Free';
+      case DietaryTag.nutFree:
+        return 'Nut-Free';
+      case DietaryTag.halal:
+        return 'Halal';
+      case DietaryTag.kosher:
+        return 'Kosher';
+      case DietaryTag.organic:
+        return 'Organic';
+      case DietaryTag.spicy:
+        return 'Spicy';
+      case DietaryTag.none:
+        return 'No Restrictions';
     }
   }
 }
