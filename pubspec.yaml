@@ -42,6 +42,7 @@ dependencies:
   firebase_storage: ^12.3.7
   firebase_messaging: ^15.1.5
   firebase_analytics: ^11.3.7
+  flutter_local_notifications: ^17.2.3
 
   # Google Maps and Places
   google_maps_flutter: ^2.9.0
