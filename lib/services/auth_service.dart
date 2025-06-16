@@ -132,6 +132,58 @@ class AuthService {
     }
   }
 
+  // Send email verification
+  Future<void> sendEmailVerification() async {
+    try {
+      final user = _auth.currentUser;
+      if (user != null && !user.emailVerified) {
+        await user.sendEmailVerification();
+      }
+    } catch (e) {
+      print('Error sending email verification: $e');
+      rethrow;
+    }
+  }
+
+  // Check if email is verified
+  bool get isEmailVerified => _auth.currentUser?.emailVerified ?? false;
+
+  // Reload current user (useful after email verification)
+  Future<void> reloadUser() async {
+    try {
+      await _auth.currentUser?.reload();
+    } catch (e) {
+      print('Error reloading user: $e');
+      rethrow;
+    }
+  }
+
+  // Confirm password reset with code
+  Future<void> confirmPasswordReset({
+    required String code,
+    required String newPassword,
+  }) async {
+    try {
+      await _auth.confirmPasswordReset(
+        code: code,
+        newPassword: newPassword,
+      );
+    } catch (e) {
+      print('Error confirming password reset: $e');
+      rethrow;
+    }
+  }
+
+  // Verify password reset code
+  Future<String> verifyPasswordResetCode(String code) async {
+    try {
+      return await _auth.verifyPasswordResetCode(code);
+    } catch (e) {
+      print('Error verifying password reset code: $e');
+      rethrow;
+    }
+  }
+
   // Sign out
   Future<void> signOut() async {
     try {
