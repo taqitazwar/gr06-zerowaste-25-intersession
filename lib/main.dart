@@ -8,6 +8,9 @@ import 'screens/auth/sign_in_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'services/notification_service.dart';
 
+// Global navigator key for notifications
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -22,8 +25,8 @@ void main() async {
   // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Initialize notifications
-  await NotificationService.initialize();
+  // Initialize notifications with navigator key
+  await NotificationService.initialize(navKey: navigatorKey);
 
   runApp(const ZeroWasteApp());
 }
@@ -37,6 +40,7 @@ class ZeroWasteApp extends StatelessWidget {
       title: 'ZeroWaste',
       theme: AppTheme.theme,
       debugShowCheckedModeBanner: false,
+      navigatorKey: navigatorKey,
       home: const AuthWrapper(),
     );
   }
