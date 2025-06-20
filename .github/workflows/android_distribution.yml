@@ -32,6 +32,10 @@ jobs:
     - name: Install Flutter dependencies
       run: flutter pub get
 
+    - name: Create .env file
+      run: |
+        echo "GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_API_KEY }}" > .env
+
     - name: Build Android Release APK
       run: flutter build apk --release
 
